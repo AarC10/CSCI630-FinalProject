@@ -1,5 +1,5 @@
 import orhelper
-from orhelper import OpenRocketInstance, Helper
+from orhelper import OpenRocketInstance, Helper, FlightDataType
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -83,23 +83,23 @@ class RocketDataGenerator:
         
         # Yoink useful vars
         variables = [
-            orh.FlightDataType.TYPE_TIME,
-            orh.FlightDataType.TYPE_ALTITUDE,
-            orh.FlightDataType.TYPE_VELOCITY_Z,
-            orh.FlightDataType.TYPE_ACCELERATION_Z,
-            orh.FlightDataType.TYPE_POSITION_X,
-            orh.FlightDataType.TYPE_POSITION_Y,
-            orh.FlightDataType.TYPE_VELOCITY_XY,
-            orh.FlightDataType.TYPE_ACCELERATION_XY,
-            orh.FlightDataType.TYPE_MACH_NUMBER,
-            orh.FlightDataType.TYPE_ORIENTATION_THETA,
-            orh.FlightDataType.TYPE_ORIENTATION_PHI,
-            orh.FlightDataType.TYPE_ANGULAR_VELOCITY_ROLL,
-            orh.FlightDataType.TYPE_ANGULAR_VELOCITY_PITCH,
-            orh.FlightDataType.TYPE_ANGULAR_VELOCITY_YAW,
-            orh.FlightDataType.TYPE_MASS,
-            orh.FlightDataType.TYPE_THRUST_FORCE,
-            orh.FlightDataType.TYPE_DRAG_FORCE,
+            FlightDataType.TYPE_TIME,
+            FlightDataType.TYPE_ALTITUDE,
+            FlightDataType.TYPE_VELOCITY_Z,
+            FlightDataType.TYPE_ACCELERATION_Z,
+            FlightDataType.TYPE_POSITION_X,
+            FlightDataType.TYPE_POSITION_Y,
+            FlightDataType.TYPE_VELOCITY_XY,
+            FlightDataType.TYPE_ACCELERATION_XY,
+            FlightDataType.TYPE_MACH_NUMBER,
+            FlightDataType.TYPE_ORIENTATION_THETA,
+            FlightDataType.TYPE_ORIENTATION_PHI,
+            FlightDataType.TYPE_ROLL_RATE,
+            FlightDataType.TYPE_PITCH_RATE,
+            FlightDataType.TYPE_YAW_RATE,
+            FlightDataType.TYPE_MASS,
+            FlightDataType.TYPE_THRUST_FORCE,
+            FlightDataType.TYPE_DRAG_FORCE,
         ]
         
         data_dict = orh.get_timeseries(sim, variables)
@@ -179,7 +179,7 @@ def test():
     launch_directions = [0.0]  # degrees from North
     
     # Init
-    generator = RocketDataGenerator()
+    generator = RocketDataGenerator("/home/aaron/OpenRocket/OpenRocket.jar")
     
     # Generate all configuration combinations
     configs = generator.generate_launch_configs(
