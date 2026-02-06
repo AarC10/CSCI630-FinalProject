@@ -202,7 +202,7 @@ def test():
     
     # .ork files to process
     ork_files = [
-        'TODO.ork',
+        '/home/aaron/Development/RIT/CSCI630/finalproject/data/rockets/openrockets/L1 Kit 2025.ork',
     ]
     
     # Generate dataset
