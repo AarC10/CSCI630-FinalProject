@@ -168,14 +168,21 @@ class RocketDataGenerator:
 
 def test():
     launch_sites = [
-        (40.7128, -74.0060),
+        (42.700473, -77.194522), # URRG
+        (31.049806, -103.547306), # Midland Spaceport
+        (32.990278, -106.969722), # Spaceport America
+        (35.349, -117.808), # FAR Mojave Desert
+        (40.883, -119.035), # Black Rock Desert
+        (34.495, -116.960), # Lucerne Dry Lake
+        (37.170, -97.737), # Argonia Rocket Pasture
+        (35.776, -115.228), # Jean Dry Lake
     ]
     
-    wind_speeds = [0.0, 2.0, 5.0, 10.0]  # m/s
+    wind_speeds = [0.0, 2.0, 4.0, 6.0, 8.0, 10.0]  # m/s
     wind_directions = [0.0, 90.0, 180.0, 270.0]  # degrees
-    temperatures = [15.0, 20.0, 25.0]  # Celsius
+    temperatures = [15.0, 20.0, 25.0, 30.0, 35.0, 40.0]  # Celsius
     pressures = [101325.0]  # Standard pressure in Pa
-    launch_angles = [0.0, 2.0, 5.0]  # degrees from vertical
+    launch_angles = [0.0, 2.5, 5.0]  # degrees from vertical
     launch_directions = [0.0]  # degrees from North
     
     # Init
