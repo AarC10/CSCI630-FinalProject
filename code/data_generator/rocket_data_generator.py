@@ -1,4 +1,3 @@
-import orhelper
 from orhelper import OpenRocketInstance, Helper, FlightDataType
 import numpy as np
 import pandas as pd
@@ -6,6 +5,9 @@ from pathlib import Path
 import itertools
 from typing import List, Dict, Tuple
 import logging
+import os
+import argparse
+import re
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -99,8 +101,13 @@ class RocketDataGenerator:
         data_dict = orh.get_timeseries(sim, variables)
         events = orh.get_events(sim)
         df = pd.DataFrame(data_dict)
-        
-        df.columns = [col.replace('FlightDataType.TYPE_', '').replace('TYPE_', '') for col in df.columns]
+
+        logging.debug(f"Events type: {type(events)}")
+        logging.debug(f"Events content: {events}")
+        if hasattr(events, 'keys'):
+            logging.debug(f"Event keys: {list(events.keys())}")
+
+        df.columns = [str(col).replace('FlightDataType.TYPE_', '').replace('TYPE_', '') for col in df.columns]
 
         return df, events
     
@@ -109,36 +116,19 @@ class RocketDataGenerator:
                         configs: List[Dict],
                         output_dir: str,
                         noise_config: Dict = None,
-                        add_config_to_csv: bool = True):
+                        include_event_labels: bool = True,
+                        include_features: bool = False):
         output_path = Path(output_dir)
-        ground_truth_path = output_path / "ground_truth"
-        generated_path = output_path / "generated"
 
-        # Create both directories
-        ground_truth_path.mkdir(parents=True, exist_ok=True)
-        generated_path.mkdir(parents=True, exist_ok=True)
+        event_ground_truth_path = output_path / "event_labeled_ground_truth"
+        event_ground_truth_path.mkdir(parents=True, exist_ok=True)
 
-        # Noise config
-        if noise_config is None:
-            noise_config = {
-                'ALTITUDE': {'std': 0.5, 'bias': 0.0},
-                'VELOCITY_Z': {'std': 0.1, 'bias': 0.0},
-                'ACCELERATION_Z': {'std': 0.5, 'bias': 0.0},
-                'VELOCITY_XY': {'std': 0.1, 'bias': 0.0},
-                'ACCELERATION_XY': {'std': 0.5, 'bias': 0.0},
-                'ROLL_RATE': {'std': 0.05, 'bias': 0.0},
-                'PITCH_RATE': {'std': 0.05, 'bias': 0.0},
-                'YAW_RATE': {'std': 0.05, 'bias': 0.0},
-                'AIR_TEMPERATURE': {'std': 0.1, 'bias': 0.0},
-                'AIR_PRESSURE': {'std': 50.0, 'bias': 0.0},
-            }
-        
         total_sims = len(ork_files) * len(configs)
         logging.info(f"Starting generation of {total_sims} simulations")
         
         with OpenRocketInstance(self.jar_path) as instance:
             orh = Helper(instance)
-            
+
             sim_count = 0
             for ork_file in ork_files:
                 rocket_name = Path(ork_file).stem
@@ -146,28 +136,25 @@ class RocketDataGenerator:
                 
                 for idx, config in enumerate(configs):
                     try:
-                        # Run and grab data
+                        # Run simulation and get clean data
                         df, events = self.run_simulation(ork_file, config, orh)
 
-                        # Create ground truth data
-                        df_ground_truth = df.copy()
-                        if add_config_to_csv:
-                            for key, value in config.items():
-                                df_ground_truth[f'config_{key}'] = value
+                        # Create filename with configuration encoded as numbers only
+                        config_parts = []
+                        config_parts.append(f"{config['latitude']:.6f}")
+                        config_parts.append(f"{config['longitude']:.6f}")
+                        config_parts.append(f"{config['wind_speed']:.1f}")
+                        config_parts.append(f"{config['wind_direction']:.0f}")
+                        config_parts.append(f"{config['temperature']:.1f}")
+                        config_parts.append(f"{config['launch_angle']:.1f}")
+                        config_parts.append(f"{config['launch_direction']:.0f}")
 
-                        # Create generated data
-                        df_generated = self.inject_sensor_noise(df, noise_config)
-                        if add_config_to_csv:
-                            for key, value in config.items():
-                                df_generated[f'config_{key}'] = value
+                        config_string = "_".join(config_parts)
+                        filename = f"{rocket_name}_{config_string}_sim_{idx:04d}.csv"
 
-                        # Save both versions
-                        filename = f"{rocket_name}_sim_{idx:04d}.csv"
-                        ground_truth_file = ground_truth_path / filename
-                        generated_file = generated_path / filename
-
-                        df_ground_truth.to_csv(ground_truth_file, index=False)
-                        df_generated.to_csv(generated_file, index=False)
+                        df_events_gt = self.process_events_for_classification(df, events)
+                        event_gt_file = event_ground_truth_path / filename
+                        df_events_gt.to_csv(event_gt_file, index=False)
 
                         sim_count += 1
                         if sim_count % 10 == 0:
@@ -177,10 +164,97 @@ class RocketDataGenerator:
                         logging.error(f"Failed simulation for {rocket_name} config {idx}: {e}")
                         continue
         
-        logging.info(f"Dataset generation complete. Generated {sim_count} CSV files each in ground_truth and generated folders under {output_dir}")
+        logging.info(f"Dataset generation complete. Generated {sim_count} clean CSV files in event_labeled_ground_truth folder under {output_dir}")
+
+    def process_events_for_classification(self, df: pd.DataFrame, events: Dict, time_window: float = 1.0) -> pd.DataFrame:
+        df_labeled = df.copy()
+
+        # Initialize event labels (0 = no event, 1 = event occurring)
+        event_types = ['liftoff', 'burnout', 'apogee', 'recovery_deployment', 'landing', 'stage_separation']
+        for event_type in event_types:
+            df_labeled[f'event_{event_type}'] = 0
+
+        # Process events if available
+        if events and isinstance(events, dict):
+            logging.debug(f"Processing {len(events)} events for classification")
+            for event_name, event_time in events.items():
+                event_name_clean = str(event_name).lower().replace(' ', '_')
+                logging.debug(f"Event: {event_name_clean}, Time: {event_time}, Type: {type(event_time)}")
+
+                # Map OpenRocket event names to our standardiczed names
+                event_mapping = {
+                    'ignition': 'liftoff',
+                    'launch': 'liftoff',
+                    'motor_burnout': 'burnout',
+                    'burnout': 'burnout',
+                    'apogee': 'apogee',
+                    'recovery_device_deployment': 'recovery_deployment',
+                    'ejection_charge': 'recovery_deployment',
+                    'landing': 'landing',
+                    'ground_hit': 'landing',
+                    'stage_separation': 'stage_separation'
+                }
+
+                # Find matching event type
+                mapped_event = None
+                for key, value in event_mapping.items():
+                    if key in event_name_clean:
+                        mapped_event = value
+                        break
+
+                if mapped_event and f'event_{mapped_event}' in df_labeled.columns:
+                    # Handle case where event_time might be a list or single value
+                    if isinstance(event_time, list):
+                        event_times = event_time
+                    else:
+                        event_times = [event_time]
+
+                    # Process each event time
+                    for single_event_time in event_times:
+                        try:
+                            # Ensure single_event_time is a number
+                            if not isinstance(single_event_time, (int, float)):
+                                logging.warning(f"Skipping non-numeric event time: {single_event_time} (type: {type(single_event_time)})")
+                                continue
+
+                            # Mark time points within window of event
+                            time_mask = (df_labeled['TIME'] >= single_event_time - time_window/2) & \
+                                       (df_labeled['TIME'] <= single_event_time + time_window/2)
+                            df_labeled.loc[time_mask, f'event_{mapped_event}'] = 1
 
 
-def test():
+                            logging.debug(f"Processed event {mapped_event} at time {single_event_time}")
+                        except Exception as e:
+                            logging.warning(f"Error processing event {mapped_event} at time {single_event_time}: {e}")
+                            continue
+
+        return df_labeled
+
+    @staticmethod
+    def parse_config_from_filename(filename: str) -> Dict:
+
+        config = {}
+
+        # Extract rocket name and parameters using regex
+        # Format: RocketName_lat_lon_ws_wd_temp_la_ld_sim_XXXX.csv
+        pattern = r'(.+)_(-?\d+\.\d+)_(-?\d+\.\d+)_(\d+\.\d+)_(\d+)_(\d+\.\d+)_(\d+\.\d+)_(\d+)_sim_\d+\.csv'
+        match = re.match(pattern, filename)
+
+        if match:
+            config = {
+                'rocket_name': match.group(1),
+                'latitude': float(match.group(2)),
+                'longitude': float(match.group(3)),
+                'wind_speed': float(match.group(4)),
+                'wind_direction': float(match.group(5)),
+                'temperature': float(match.group(6)),
+                'launch_angle': float(match.group(7)),
+                'launch_direction': float(match.group(8))
+            }
+
+        return config
+
+def generate(openrocket_jar_path: str, input_dir: str, output_dir: str):
     launch_sites = [
         (42.700473, -77.194522), # URRG
         (31.049806, -103.547306), # Midland Spaceport
@@ -200,7 +274,7 @@ def test():
     launch_directions = [0.0]  # degrees from North
     
     # Init
-    generator = RocketDataGenerator("/home/aaron/OpenRocket/OpenRocket.jar")
+    generator = RocketDataGenerator(jar_path=openrocket_jar_path)
     
     # Generate all configuration combinations
     configs = generator.generate_launch_configs(
@@ -215,26 +289,28 @@ def test():
     
     logging.info(f"Generated {len(configs)} unique configurations")
     
-    custom_noise = {
-        'ALTITUDE': {'std': 1.0, 'bias': 0.2},
-        'VELOCITY_Z': {'std': 0.2, 'bias': 0.0},
-        'ACCELERATION_Z': {'std': 1.0, 'bias': 0.0},
-    }
-    
     # .ork files to process
-    ork_files = [
-        '/home/aaron/Development/RIT/CSCI630/finalproject/data/rockets/openrockets/L1 Kit 2025.ork',
-    ]
-    
-    # Generate dataset
+    ork_files = [os.path.join(input_dir, f) for f in os.listdir(input_dir) if f.endswith('.ork')]
+
+    # Generate dataset with only clean event classification data
     generator.generate_dataset(
         ork_files=ork_files,
         configs=configs,
-        output_dir='./simulation_data',
-        noise_config=custom_noise,
-        add_config_to_csv=True
+        output_dir=output_dir,
+        include_event_labels=True,
+        include_features=False
     )
 
-
 if __name__ == '__main__':
-    test()
+    parser = argparse.ArgumentParser(description='Generate rocket flight datasets from OpenRocket simulations.')
+    parser.add_argument('--jar_path', type=str, default=None, help='Path to OpenRocket JAR file (optional if in classpath)')
+    parser.add_argument('--input_dir', type=str, required=True, help='Directory containing .ork files')
+    parser.add_argument('--output_dir', type=str, default='./simulation_data', help='Directory to save generated datasets')
+
+    args = parser.parse_args()
+
+    generate(
+        openrocket_jar_path=args.jar_path,
+        input_dir=args.input_dir,
+        output_dir=args.output_dir
+    )
