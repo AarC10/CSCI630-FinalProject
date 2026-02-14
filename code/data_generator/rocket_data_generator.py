@@ -116,15 +116,16 @@ class RocketDataGenerator:
         # Noise config
         if noise_config is None:
             noise_config = {
-                'Altitude': {'std': 0.5, 'bias': 0.0},
-                'Vertical velocity': {'std': 0.1, 'bias': 0.0},
-                'Vertical acceleration': {'std': 0.5, 'bias': 0.0},
-                'Position X': {'std': 1.0, 'bias': 0.0},
-                'Position Y': {'std': 1.0, 'bias': 0.0},
-                'Lateral velocity': {'std': 0.1, 'bias': 0.0},
-                'Roll rate': {'std': 0.05, 'bias': 0.0},
-                'Pitch rate': {'std': 0.05, 'bias': 0.0},
-                'Yaw rate': {'std': 0.05, 'bias': 0.0},
+                'ALTITUDE': {'std': 0.5, 'bias': 0.0},
+                'VELOCITY_Z': {'std': 0.1, 'bias': 0.0},
+                'ACCELERATION_Z': {'std': 0.5, 'bias': 0.0},
+                'VELOCITY_XY': {'std': 0.1, 'bias': 0.0},
+                'ACCELERATION_XY': {'std': 0.5, 'bias': 0.0},
+                'ROLL_RATE': {'std': 0.05, 'bias': 0.0},
+                'PITCH_RATE': {'std': 0.05, 'bias': 0.0},
+                'YAW_RATE': {'std': 0.05, 'bias': 0.0},
+                'AIR_TEMPERATURE': {'std': 0.1, 'bias': 0.0},
+                'AIR_PRESSURE': {'std': 50.0, 'bias': 0.0},
             }
         
         total_sims = len(ork_files) * len(configs)
