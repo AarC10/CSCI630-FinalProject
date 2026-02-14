@@ -111,8 +111,13 @@ class RocketDataGenerator:
                         noise_config: Dict = None,
                         add_config_to_csv: bool = True):
         output_path = Path(output_dir)
-        output_path.mkdir(parents=True, exist_ok=True)
-        
+        ground_truth_path = output_path / "ground_truth"
+        generated_path = output_path / "generated"
+
+        # Create both directories
+        ground_truth_path.mkdir(parents=True, exist_ok=True)
+        generated_path.mkdir(parents=True, exist_ok=True)
+
         # Noise config
         if noise_config is None:
             noise_config = {
@@ -143,15 +148,27 @@ class RocketDataGenerator:
                     try:
                         # Run and grab data
                         df, events = self.run_simulation(ork_file, config, orh)
-                        df_noisy = self.inject_sensor_noise(df, noise_config)
+
+                        # Create ground truth data
+                        df_ground_truth = df.copy()
                         if add_config_to_csv:
                             for key, value in config.items():
-                                df_noisy[f'config_{key}'] = value
+                                df_ground_truth[f'config_{key}'] = value
 
-                        # Save
-                        output_file = output_path / f"{rocket_name}_sim_{idx:04d}.csv"
-                        df_noisy.to_csv(output_file, index=False)
-                        
+                        # Create generated data
+                        df_generated = self.inject_sensor_noise(df, noise_config)
+                        if add_config_to_csv:
+                            for key, value in config.items():
+                                df_generated[f'config_{key}'] = value
+
+                        # Save both versions
+                        filename = f"{rocket_name}_sim_{idx:04d}.csv"
+                        ground_truth_file = ground_truth_path / filename
+                        generated_file = generated_path / filename
+
+                        df_ground_truth.to_csv(ground_truth_file, index=False)
+                        df_generated.to_csv(generated_file, index=False)
+
                         sim_count += 1
                         if sim_count % 10 == 0:
                             logging.info(f"Completed {sim_count}/{total_sims} simulations")
@@ -160,7 +177,7 @@ class RocketDataGenerator:
                         logging.error(f"Failed simulation for {rocket_name} config {idx}: {e}")
                         continue
         
-        logging.info(f"Dataset generation complete. Generated {sim_count} CSV files in {output_dir}")
+        logging.info(f"Dataset generation complete. Generated {sim_count} CSV files each in ground_truth and generated folders under {output_dir}")
 
 
 def test():
@@ -199,9 +216,9 @@ def test():
     logging.info(f"Generated {len(configs)} unique configurations")
     
     custom_noise = {
-        'Altitude': {'std': 1.0, 'bias': 0.2},
-        'Vertical velocity': {'std': 0.2, 'bias': 0.0},
-        'Vertical acceleration': {'std': 1.0, 'bias': 0.0},
+        'ALTITUDE': {'std': 1.0, 'bias': 0.2},
+        'VELOCITY_Z': {'std': 0.2, 'bias': 0.0},
+        'ACCELERATION_Z': {'std': 1.0, 'bias': 0.0},
     }
     
     # .ork files to process
