@@ -84,28 +84,24 @@ class RocketDataGenerator:
         # Yoink useful vars
         variables = [
             FlightDataType.TYPE_TIME,
+            FlightDataType.TYPE_AIR_TEMPERATURE,
+            FlightDataType.TYPE_AIR_PRESSURE,
             FlightDataType.TYPE_ALTITUDE,
-            FlightDataType.TYPE_VELOCITY_Z,
-            FlightDataType.TYPE_ACCELERATION_Z,
-            FlightDataType.TYPE_POSITION_X,
-            FlightDataType.TYPE_POSITION_Y,
             FlightDataType.TYPE_VELOCITY_XY,
+            FlightDataType.TYPE_VELOCITY_Z,
             FlightDataType.TYPE_ACCELERATION_XY,
-            FlightDataType.TYPE_MACH_NUMBER,
-            FlightDataType.TYPE_ORIENTATION_THETA,
-            FlightDataType.TYPE_ORIENTATION_PHI,
+            FlightDataType.TYPE_ACCELERATION_Z,
             FlightDataType.TYPE_ROLL_RATE,
             FlightDataType.TYPE_PITCH_RATE,
             FlightDataType.TYPE_YAW_RATE,
-            FlightDataType.TYPE_MASS,
-            FlightDataType.TYPE_THRUST_FORCE,
-            FlightDataType.TYPE_DRAG_FORCE,
         ]
         
         data_dict = orh.get_timeseries(sim, variables)
         events = orh.get_events(sim)
         df = pd.DataFrame(data_dict)
         
+        df.columns = [col.replace('FlightDataType.TYPE_', '').replace('TYPE_', '') for col in df.columns]
+
         return df, events
     
     def generate_dataset(self,
