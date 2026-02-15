@@ -4,14 +4,14 @@ L1Kit
 L1Kit2025
 
 
-L2 Rockets - 11
+L2 Rockets - 10
 --------------
 BarryBeeBenson
-Dragonfly44
-Enceladus
+
 FLDSMDFR
-Icarus
+L2Kit
 L935
+LittleBro
 Mayflower
 MightyEagle
 Olympia
@@ -27,3 +27,9 @@ OTIS
 RISK
 VOID
 Mayhem
+
+Not Included - 3
+----------------
+Dragonfly44
+Enceladus
+Icarus
