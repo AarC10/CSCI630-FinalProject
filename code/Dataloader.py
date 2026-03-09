@@ -1,30 +1,213 @@
 import pandas as pd
+import numpy as np
+from pathlib import Path
+from typing import Tuple, List
+from sklearn.model_selection import train_test_split
+import logging
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
 
 class Dataloader:
     SENSOR_COLS = ["AIR_PRESSURE", "AIR_TEMPERATURE", "ACCELERATION_XY", "ACCELERATION_Z"]
-    EVENT_COLS = ["event_liftoff"] # TODO: Check the data
 
-    def __init__(self, data_path, sequence_length=100, stride=50, test_size=0.2):
-        self.data_path = data_path
-        self.data = None
+    # Flight phase mapping
+    PHASE_MAPPING = {
+        0: 'no_event',
+        1: 'liftoff',
+        2: 'burnout',
+        3: 'apogee',
+        4: 'recovery_deployment',
+        5: 'landing'
+    }
+
+    def __init__(self, data_path: str, sequence_length: int = 100, stride: int = 50,
+                 test_size: float = 0.2, random_state: int = 42):
+        self.data_path = Path(data_path)
         self.sequence_length = sequence_length
         self.stride = stride
         self.test_size = test_size
+        self.random_state = random_state
 
-    def load_chunk(self, chunk_size=100):
+        if not self.data_path.exists():
+            raise ValueError(f"Data path does not exist: {self.data_path}")
+
+        logging.info(f"DataLoader initialized with sequence_length={sequence_length}, "
+                    f"stride={stride}, test_size={test_size}")
+
+    def _create_sliding_windows(self, df: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray]:
+        # Extract sensor data and labels
+        sensor_data = df[self.SENSOR_COLS].values  # (n_timesteps, n_channels)
+        labels = df['flight_phase'].values  # (n_timesteps,)
+
+        n_timesteps, n_channels = sensor_data.shape
+        n_windows = (n_timesteps - self.sequence_length) // self.stride + 1
+
+        if n_windows <= 0:
+            return np.array([]), np.array([])
+
+        X_windows = []
+        y_windows = []
+
+        for i in range(n_windows):
+            start_idx = i * self.stride
+            end_idx = start_idx + self.sequence_length
+
+            # Yoink the window
+            window = sensor_data[start_idx:end_idx]  # (sequence_length, n_channels)
+            window_labels = labels[start_idx:end_idx]  # (sequence_length,)
+
+            # Skip windows with NaN values
+            if np.any(np.isnan(window)):
+                continue
+
+            # Transpose for aeon so its (n_channels, sequence_length)
+            window = window.T
+
+            # Majority vote for window label
+            unique, counts = np.unique(window_labels, return_counts=True)
+            majority_label = unique[np.argmax(counts)]
+
+            X_windows.append(window)
+            y_windows.append(majority_label)
+
+        if len(X_windows) == 0:
+            return np.array([]), np.array([])
+
+        # Stack into arrays
+        X_windows = np.array(X_windows)  # (n_windows, n_channels, sequence_length)
+        y_windows = np.array(y_windows)  # (n_windows,)
+
+        return X_windows, y_windows
+
+    def load_data(self, max_files: int = None) -> Tuple[np.ndarray, np.ndarray]:
+        csv_files = sorted(list(self.data_path.glob("*.csv")))
+
+        if len(csv_files) == 0:
+            raise ValueError(f"No CSV files found in {self.data_path}")
+
+        if max_files is not None:
+            csv_files = csv_files[:max_files]
+
+        logging.info(f"Loading {len(csv_files)} CSV files from {self.data_path}")
+
+        all_X = []
+        all_y = []
+        skipped_files = 0
+
+        for i, file_path in enumerate(csv_files):
+            try:
+                df = pd.read_csv(file_path)
+
+                # COnfirm required columns are present
+                missing_cols = set(self.SENSOR_COLS + ['flight_phase']) - set(df.columns)
+                if missing_cols:
+                    logging.warning(f"Skipping {file_path.name}: missing columns {missing_cols}")
+                    skipped_files += 1
+                    continue
+
+                # Create sliding windows
+                X_windows, y_windows = self._create_sliding_windows(df)
+
+                if len(X_windows) > 0:
+                    all_X.append(X_windows)
+                    all_y.append(y_windows)
+
+                if (i + 1) % 500 == 0:
+                    logging.info(f"Processed {i + 1}/{len(csv_files)} files")
+
+            except Exception as e:
+                logging.error(f"Error processing {file_path.name}: {e}")
+                skipped_files += 1
+                continue
+
+        if len(all_X) == 0:
+            raise ValueError("No valid data could be loaded")
+
+        X = np.concatenate(all_X, axis=0)
+        y = np.concatenate(all_y, axis=0)
+
+        logging.info(f"Loaded {len(csv_files) - skipped_files} files successfully "
+                    f"({skipped_files} skipped)")
+        logging.info(f"Generated {len(X)} windows with shape {X.shape}")
+        logging.info(f"Class distribution: {dict(zip(*np.unique(y, return_counts=True)))}")
+
+        return X, y
+
+    def get_train_test_split(self, max_files: int = None,
+                           stratify: bool = True) -> Tuple[np.ndarray, np.ndarray,
+                                                            np.ndarray, np.ndarray]:
+        X, y = self.load_data(max_files=max_files)
+
+        stratify_by = y if stratify else None
+
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y,
+            test_size=self.test_size,
+            random_state=self.random_state,
+            stratify=stratify_by
+        )
+
+        logging.info(f"Train set: {len(X_train)} samples")
+        logging.info(f"Test set: {len(X_test)} samples")
+        logging.info(f"Train class distribution: {dict(zip(*np.unique(y_train, return_counts=True)))}")
+        logging.info(f"Test class distribution: {dict(zip(*np.unique(y_test, return_counts=True)))}")
+
+        return X_train, X_test, y_train, y_test
+
+    def estimate_memory(self, n_files: int = None) -> dict:
         csv_files = list(self.data_path.glob("*.csv"))
 
-        for i in range(0, len(csv_files), chunk_size):
-            chunk_files = csv_files[i:i+chunk_size]
-            chunk_X = []
-            chunk_y = []
+        if n_files is None:
+            n_files = len(csv_files)
+        else:
+            n_files = min(n_files, len(csv_files))
 
-            for file in chunk_files:
-                df = pd.read_csv(file)
-                X = df[self.SENSOR_COLS].values
-                y = df[self.EVENT_COLS].values
-                chunk_X.append(X)
-                chunk_y.append(y)
+        if n_files == 0:
+            return {"error": "No CSV files found"}
 
-            if chunk_X:
-                yield chunk_X, chunk_y
+        # Sample first file to estimate
+        sample_file = csv_files[0]
+        df = pd.read_csv(sample_file)
+
+        n_timesteps = len(df)
+        n_channels = len(self.SENSOR_COLS)
+
+        # Estimate windows per file
+        n_windows_per_file = max(0, (n_timesteps - self.sequence_length) // self.stride + 1)
+
+        # Total windows
+        total_windows = n_windows_per_file * n_files
+        X_memory_bytes = total_windows * n_channels * self.sequence_length * 8
+        y_memory_bytes = total_windows * 8
+        total_memory_bytes = X_memory_bytes + y_memory_bytes
+
+        return {
+            "n_files": n_files,
+            "estimated_windows_per_file": n_windows_per_file,
+            "total_estimated_windows": total_windows,
+            "X_memory_MB": X_memory_bytes / (1024 ** 2),
+            "y_memory_MB": y_memory_bytes / (1024 ** 2),
+            "total_memory_MB": total_memory_bytes / (1024 ** 2),
+            "total_memory_GB": total_memory_bytes / (1024 ** 3),
+            "X_shape": (total_windows, n_channels, self.sequence_length),
+            "y_shape": (total_windows,)
+        }
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Dataloader for rocket sensor data")
+    parser.add_argument("--data_path", type=str, required=True, help="Path to directory containing CSV files")
+
+    args = parser.parse_args()
+    dataloader = Dataloader(args.data_path)
+    memory_info = dataloader.estimate_memory(n_files=1000)
+    logging.info(f"Memory estimation for 1000 files: {memory_info}")
+    X_train, X_test, y_train, y_test = dataloader.get_train_test_split()
+
+    logging.info(f"Final train set shape: {X_train.shape}, {y_train.shape}")
+    logging.info(f"Final test set shape: {X_test.shape}, {y_test.shape}")
+    logging.info(f"Train class distribution: {dict(zip(*np.unique(y_train, return_counts=True)))}")
+    logging.info(f"Test class distribution: {dict(zip(*np.unique(y_test, return_counts=True)))}")
+
