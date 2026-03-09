@@ -7,7 +7,6 @@ import json
 import logging
 import os
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from functools import partial
 from pathlib import Path
 
 import numpy as np
@@ -62,6 +61,11 @@ DROP_COLS = {
     "ALTITUDE",
     "VELOCITY_XY",
     "VELOCITY_Z",
+
+    # These aren't physics derived but RPY is sort of useless for this task and sensors often saturate in HPR
+    "ROLL_RATE",
+    "PITCH_RATE",
+    "YAW_RATE",
 }
 
 # Priority-ordered list of events — first match wins when multiple are active.
