@@ -7,6 +7,7 @@ import json
 import logging
 import os
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from functools import partial
 from pathlib import Path
 
 import numpy as np
@@ -49,17 +50,6 @@ DEFAULT_NOISE_CONFIG = {
         "std": 0.000698,
         "bias": 0.0,
     },
-}
-# Columns that must NEVER be modified
-PROTECTED_COLS = {
-    "TIME",
-}
-
-# Columns to drop from output
-DROP_COLS = {
-    "ALTITUDE",
-    "VELOCITY_XY",
-    "VELOCITY_Z",
 }
 
 # Columns that must NEVER be modified (but are kept in output)
@@ -150,6 +140,10 @@ def inject_noise_to_file(
     if present_events:
         df["flight_phase"] = df[present_events].apply(resolve_label, axis=1)
         df = df.drop(columns=present_events)
+
+    leftover_event_cols = [c for c in df.columns if c.startswith("event_")]
+    if leftover_event_cols:
+        df = df.drop(columns=leftover_event_cols)
 
     cols_to_drop = [c for c in DROP_COLS if c in df.columns]
     if cols_to_drop:
