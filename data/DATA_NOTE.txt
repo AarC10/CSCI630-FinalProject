@@ -16,7 +16,6 @@ Mayflower
 MightyEagle
 Olympia
 Prometheus
-Tuatara (two stage)
 
 
 L3 Rockets - 6
@@ -33,3 +32,5 @@ Not Included - 3
 Dragonfly44
 Enceladus
 Icarus
+Tuatara (two stage)
+
