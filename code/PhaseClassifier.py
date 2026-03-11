@@ -4,9 +4,12 @@ from time import perf_counter
 from typing import Any, Dict, Optional
 
 import numpy as np
+import logging
 from sklearn.metrics import accuracy_score, f1_score
 
 from LogisticRegression import LogisticRegression
+
+logger = logging.getLogger(__name__)
 
 class FlightPhaseClassifier:
     SUPPORTED_MODEL_TYPES = {"lr", "knn", "tsf", "rocket", "catch22_lr"}
@@ -109,6 +112,8 @@ class FlightPhaseClassifier:
         model.fit(X, y)
         self.train_time = perf_counter() - start
         self.is_fitted = True
+
+        logger.info(f"Finished fitting {self.model_type} model in {self.train_time:.2f} seconds.")
         return self
 
     def predict(self, X: np.ndarray) -> np.ndarray:
@@ -118,6 +123,8 @@ class FlightPhaseClassifier:
         start = perf_counter()
         predictions = self.model.predict(X)
         self.last_inference_time = perf_counter() - start
+
+        logger.info(f"Finished predicting {len(X)} samples in {self.last_inference_time:.2f} seconds.")
         return np.asarray(predictions, dtype=np.int64)
 
     def evaluate(self, X: np.ndarray, y: np.ndarray) -> Dict[str, Any]:
