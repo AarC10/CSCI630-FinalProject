@@ -4,6 +4,8 @@ import argparse
 import ast
 import importlib
 import json
+import shutil
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +19,8 @@ PHASE_MAPPING = FlightPhaseClassifier.PHASE_MAPPING
 PHASE_LABELS = sorted(PHASE_MAPPING)
 PHASE_NAMES = [PHASE_MAPPING[label] for label in PHASE_LABELS]
 DEFAULT_CURVE_FRACTIONS = [0.2, 0.4, 0.6, 0.8, 1.0]
+BEST_MODEL_FILENAME = "best_model.pkl"
+BEST_MODEL_METADATA_FILENAME = "best_model_metadata.json"
 
 def _coerce_cli_value(value: str) -> Any:
     lowered = value.lower()
@@ -93,6 +97,96 @@ def build_predictions_dataframe(
     return dataframe
 
 
+def best_model_path(output_root: str | Path) -> Path:
+    return Path(output_root).expanduser().resolve() / BEST_MODEL_FILENAME
+
+
+def best_model_metadata_path(output_root: str | Path) -> Path:
+    return Path(output_root).expanduser().resolve() / BEST_MODEL_METADATA_FILENAME
+
+
+def load_best_model_metadata(output_root: str | Path) -> dict[str, Any] | None:
+    metadata_path = best_model_metadata_path(output_root)
+    if not metadata_path.exists():
+        return None
+    return json.loads(metadata_path.read_text(encoding="utf-8"))
+
+
+def _atomic_copy_file(source_path: str | Path, destination_path: str | Path) -> Path:
+    source = Path(source_path).expanduser().resolve()
+    destination = Path(destination_path).expanduser().resolve()
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temp_path = destination.with_name(f".{destination.name}.tmp")
+    shutil.copy2(source, temp_path)
+    temp_path.replace(destination)
+    return destination
+
+
+def _atomic_write_json(destination_path: str | Path, payload: dict[str, Any]) -> Path:
+    destination = Path(destination_path).expanduser().resolve()
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temp_path = destination.with_name(f".{destination.name}.tmp")
+    with temp_path.open("w", encoding="utf-8") as handle:
+        json.dump(payload, handle, indent=2, sort_keys=True)
+    temp_path.replace(destination)
+    return destination
+
+
+def promote_best_model(
+    output_root: str | Path,
+    run_dir: str | Path,
+    run_model_path: str | Path,
+    score: float,
+    metrics_path: str | Path | None = None,
+    config: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    output_root_path = Path(output_root).expanduser().resolve()
+    output_root_path.mkdir(parents=True, exist_ok=True)
+    metadata_path = best_model_metadata_path(output_root_path)
+    model_path = best_model_path(output_root_path)
+    current_best = load_best_model_metadata(output_root_path)
+    current_best_score = None if current_best is None else float(current_best.get("weighted_f1", float("-inf")))
+
+    promoted = current_best is None or float(score) > current_best_score
+    result = {
+        "promoted": promoted,
+        "selection_metric": "test.weighted_f1",
+        "candidate_weighted_f1": float(score),
+        "previous_best_weighted_f1": current_best_score,
+        "best_model_path": str(model_path),
+        "best_model_metadata_path": str(metadata_path),
+    }
+
+    if not promoted:
+        result["active_source_run_dir"] = None if current_best is None else current_best.get("source_run_dir")
+        return result
+
+    copied_model_path = _atomic_copy_file(run_model_path, model_path)
+    metadata = {
+        "selection_metric": "test.weighted_f1",
+        "weighted_f1": float(score),
+        "promoted_at_utc": datetime.now(timezone.utc).isoformat(),
+        "source_run_dir": str(Path(run_dir).expanduser().resolve()),
+        "source_model_path": str(Path(run_model_path).expanduser().resolve()),
+        "best_model_path": str(copied_model_path),
+    }
+    if metrics_path is not None:
+        metadata["source_metrics_path"] = str(Path(metrics_path).expanduser().resolve())
+    if config is not None:
+        metadata.update(
+            {
+                "model": config.get("model"),
+                "sequence_length": config.get("sequence_length"),
+                "stride": config.get("stride"),
+                "random_state": config.get("random_state"),
+                "test_size": config.get("test_size"),
+            }
+        )
+    _atomic_write_json(metadata_path, metadata)
+    result["active_source_run_dir"] = metadata["source_run_dir"]
+    return result
+
+
 def load_model(model_path: str | Path) -> tuple[Any, Path, dict[str, Any]]:
     run_dir, resolved_model_path = resolve_model_path(model_path)
     classifier = Experiment.load_pickle(resolved_model_path)
@@ -104,4 +198,11 @@ def load_model(model_path: str | Path) -> tuple[Any, Path, dict[str, Any]]:
             f"Saved model at {resolved_model_path} is missing required classifier attributes: {missing_attrs}."
         )
 
-    return classifier, run_dir, load_saved_config(run_dir)
+    saved_config = load_saved_config(run_dir)
+    if not saved_config and resolved_model_path.name == BEST_MODEL_FILENAME:
+        metadata = load_best_model_metadata(run_dir)
+        source_run_dir = None if metadata is None else metadata.get("source_run_dir")
+        if source_run_dir:
+            saved_config = load_saved_config(Path(source_run_dir))
+
+    return classifier, run_dir, saved_config

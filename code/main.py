@@ -278,6 +278,18 @@ def run_train(args: argparse.Namespace) -> int:
         test_metrics = classifier.evaluate(X_test, y_test)
         y_test_pred = classifier.predict(X_test)
 
+        metrics_payload = {"train": train_metrics, "test": test_metrics}
+        metrics_path = experiment.save_json("metrics.json", metrics_payload)
+        best_model_result = promote_best_model(
+            output_root=args.output_dir,
+            run_dir=experiment.run_dir,
+            run_model_path=model_path,
+            score=test_metrics["weighted_f1"],
+            metrics_path=metrics_path,
+            config=config,
+        )
+        experiment.save_json("best_model_status.json", best_model_result)
+
         curve_results = compute_learning_curves(
             model_type=args.model,
             model_kwargs=model_kwargs,
@@ -300,7 +312,6 @@ def run_train(args: argparse.Namespace) -> int:
             }
         )
         experiment.save_dataframe("test_predictions.csv", prediction_df)
-        experiment.save_json("metrics.json", {"train": train_metrics, "test": test_metrics})
         experiment.save_json("learning_curves.json", curve_results)
         experiment.save_json(
             "dataset_summary.json",
@@ -315,6 +326,10 @@ def run_train(args: argparse.Namespace) -> int:
 
         print(f"Training complete. Run artifacts saved to: {experiment.run_dir}")
         print(f"Test accuracy: {test_metrics['accuracy']:.4f} | Weighted F1: {test_metrics['weighted_f1']:.4f}")
+        if best_model_result["promoted"]:
+            print(f"Promoted this run to best model: {best_model_result['best_model_path']}")
+        else:
+            print(f"Kept existing best model: {best_model_result['best_model_path']}")
         return 0
     except Exception as exc:
         LOGGER.exception("Post-training reporting failed after the model was already saved.")
