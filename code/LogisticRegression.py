@@ -29,6 +29,7 @@ class LogisticRegression:
                 max_iter=self.max_iter,
                 C=self.C,
                 solver=self.solver,
+                class_weight="balanced",
                 **self.kwargs,
             ),
         )
