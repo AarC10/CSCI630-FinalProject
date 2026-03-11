@@ -1,5 +1,6 @@
 import argparse
 import logging
+import traceback
 
 from pathlib import Path
 from typing import Iterable
@@ -266,49 +267,65 @@ def run_train(args: argparse.Namespace) -> int:
         experiment.save_text("not_implemented.txt", str(exc))
         raise SystemExit(f"Model '{args.model}' is not implemented yet: {exc}") from exc
 
-    train_metrics = classifier.evaluate(X_train, y_train)
-    test_metrics = classifier.evaluate(X_test, y_test)
-    y_test_pred = classifier.predict(X_test)
-
-    curve_results = compute_learning_curves(
-        model_type=args.model,
-        model_kwargs=model_kwargs,
-        random_state=args.random_state,
-        X_train=X_train,
-        y_train=y_train,
-        X_eval=X_test,
-        y_eval=y_test,
-        fractions=args.curve_fractions,
+    model_path = experiment.save_pickle("model.pkl", classifier)
+    experiment.save_text(
+        "model_saved.txt",
+        f"Model was fitted and saved to {model_path.name} before post-training reporting steps ran.\n",
     )
 
-    prediction_df = pd.DataFrame(
-        {
-            "sample_index": np.arange(len(y_test_pred), dtype=int),
-            "actual_phase": y_test.astype(int),
-            "actual_phase_name": [phase_name(label) for label in y_test],
-            "predicted_phase": y_test_pred.astype(int),
-            "predicted_phase_name": [phase_name(label) for label in y_test_pred],
-            "is_correct": y_test_pred.astype(int) == y_test.astype(int),
-        }
-    )
-    experiment.save_dataframe("test_predictions.csv", prediction_df)
-    experiment.save_pickle("model.pkl", classifier)
-    experiment.save_json("metrics.json", {"train": train_metrics, "test": test_metrics})
-    experiment.save_json("learning_curves.json", curve_results)
-    experiment.save_json(
-        "dataset_summary.json",
-        {
-            "X_train_shape": X_train.shape,
-            "X_test_shape": X_test.shape,
-            "y_train_shape": y_train.shape,
-            "y_test_shape": y_test.shape,
-        },
-    )
-    save_training_plots(experiment, classifier, y_train, y_test, y_test_pred, curve_results)
+    try:
+        train_metrics = classifier.evaluate(X_train, y_train)
+        test_metrics = classifier.evaluate(X_test, y_test)
+        y_test_pred = classifier.predict(X_test)
 
-    print(f"Training complete. Run artifacts saved to: {experiment.run_dir}")
-    print(f"Test accuracy: {test_metrics['accuracy']:.4f} | Weighted F1: {test_metrics['weighted_f1']:.4f}")
-    return 0
+        curve_results = compute_learning_curves(
+            model_type=args.model,
+            model_kwargs=model_kwargs,
+            random_state=args.random_state,
+            X_train=X_train,
+            y_train=y_train,
+            X_eval=X_test,
+            y_eval=y_test,
+            fractions=args.curve_fractions,
+        )
+
+        prediction_df = pd.DataFrame(
+            {
+                "sample_index": np.arange(len(y_test_pred), dtype=int),
+                "actual_phase": y_test.astype(int),
+                "actual_phase_name": [phase_name(label) for label in y_test],
+                "predicted_phase": y_test_pred.astype(int),
+                "predicted_phase_name": [phase_name(label) for label in y_test_pred],
+                "is_correct": y_test_pred.astype(int) == y_test.astype(int),
+            }
+        )
+        experiment.save_dataframe("test_predictions.csv", prediction_df)
+        experiment.save_json("metrics.json", {"train": train_metrics, "test": test_metrics})
+        experiment.save_json("learning_curves.json", curve_results)
+        experiment.save_json(
+            "dataset_summary.json",
+            {
+                "X_train_shape": X_train.shape,
+                "X_test_shape": X_test.shape,
+                "y_train_shape": y_train.shape,
+                "y_test_shape": y_test.shape,
+            },
+        )
+        save_training_plots(experiment, classifier, y_train, y_test, y_test_pred, curve_results)
+
+        print(f"Training complete. Run artifacts saved to: {experiment.run_dir}")
+        print(f"Test accuracy: {test_metrics['accuracy']:.4f} | Weighted F1: {test_metrics['weighted_f1']:.4f}")
+        return 0
+    except Exception as exc:
+        LOGGER.exception("Post-training reporting failed after the model was already saved.")
+        experiment.save_text(
+            "post_fit_warning.txt",
+            "The model finished fitting and was saved to model.pkl, but a later reporting step failed.\n\n"
+            + traceback.format_exc(),
+        )
+        print(f"Training finished and the model was saved to: {experiment.run_dir}")
+        print(f"Warning: post-training reporting failed after the model was saved: {exc}")
+        return 0
 
 
 

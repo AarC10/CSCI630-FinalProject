@@ -55,8 +55,10 @@ class Experiment:
 
     def save_pickle(self, relative_path: str, payload: Any) -> Path:
         path = self.path(relative_path)
-        with path.open("wb") as handle:
+        temp_path = path.with_name(f".{path.name}.tmp")
+        with temp_path.open("wb") as handle:
             pickle.dump(payload, handle)
+        temp_path.replace(path)
         return path
 
     def save_dataframe(self, relative_path: str, dataframe: pd.DataFrame) -> Path:
@@ -90,6 +92,7 @@ class Experiment:
         fig.savefig(path, dpi=200, bbox_inches="tight")
 
         plt.close(fig)
+        return path
 
     def plot_metric_curve(
         self,
