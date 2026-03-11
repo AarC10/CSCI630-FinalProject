@@ -8,7 +8,7 @@ from sklearn.metrics import accuracy_score, f1_score
 
 from LogisticRegression import LogisticRegression
 
-class PhaseClassifier:
+class FlightPhaseClassifier:
     SUPPORTED_MODEL_TYPES = {"lr", "knn", "tsf", "rocket", "catch22_lr"}
     PHASE_MAPPING = {
         0: "no_event",
