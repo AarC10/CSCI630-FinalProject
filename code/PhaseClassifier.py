@@ -6,9 +6,10 @@ from typing import Any, Dict, Optional
 import numpy as np
 from sklearn.metrics import accuracy_score, f1_score
 
+from LogisticRegression import LogisticRegression
 
-class FlightPhaseClassifier:
-    SUPPORTED_MODEL_TYPES = {"lr", "knn", "tsf", "rocket"}
+class PhaseClassifier:
+    SUPPORTED_MODEL_TYPES = {"lr", "knn", "tsf", "rocket", "catch22_lr"}
     PHASE_MAPPING = {
         0: "no_event",
         1: "liftoff",
@@ -18,7 +19,7 @@ class FlightPhaseClassifier:
         5: "landing",
     }
 
-    def __init__(self, model_type: str, random_state: Optional[int] = 42):
+    def __init__(self, model_type: str, random_state: Optional[int] = 42, **model_kwargs: Any):
         if model_type not in self.SUPPORTED_MODEL_TYPES:
             raise ValueError(
                 f"Unsupported model_type '{model_type}'. "
@@ -27,6 +28,7 @@ class FlightPhaseClassifier:
 
         self.model_type = model_type
         self.random_state = random_state
+        self.model_kwargs = dict(model_kwargs)
         self.model: Any | None = None
         self.is_fitted = False
         self.train_time = 0.0
@@ -34,6 +36,9 @@ class FlightPhaseClassifier:
 
     def _build_model(self) -> Any:
         if self.model_type == "lr":
+            return LogisticRegression(random_state=self.random_state, **self.model_kwargs)
+
+        if self.model_type == "catch22_lr":
             raise NotImplementedError("TODO")
 
         if self.model_type == "knn":
@@ -94,7 +99,7 @@ class FlightPhaseClassifier:
         if not self.is_fitted or self.model is None:
             raise RuntimeError("Classifier has not been fitted yet. Call fit(X, y) first.")
 
-    def fit(self, X: np.ndarray, y: np.ndarray) -> "FlightPhaseClassifier":
+    def fit(self, X: np.ndarray, y: np.ndarray) -> "PhaseClassifier":
         X = self._validate_X(X)
         y = self._validate_y(y, n_samples=X.shape[0])
 
