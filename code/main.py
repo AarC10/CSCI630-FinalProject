@@ -2,11 +2,13 @@ import argparse
 import logging
 
 from pathlib import Path
+from typing import Iterable
+
 from sklearn.model_selection import train_test_split
 
 from PhaseClassifier import FlightPhaseClassifier
-import Dataloader
-import Experiment
+from Dataloader import Dataloader
+from Experiment import Experiment
 from utils import *
 
 PHASE_MAPPING = FlightPhaseClassifier.PHASE_MAPPING
