@@ -4,12 +4,12 @@ import logging
 from pathlib import Path
 from sklearn.model_selection import train_test_split
 
-import PhaseClassifier
+from PhaseClassifier import FlightPhaseClassifier
 import Dataloader
 import Experiment
 from utils import *
 
-PHASE_MAPPING = PhaseClassifier.PHASE_MAPPING
+PHASE_MAPPING = FlightPhaseClassifier.PHASE_MAPPING
 PHASE_LABELS = sorted(PHASE_MAPPING)
 PHASE_NAMES = [PHASE_MAPPING[label] for label in PHASE_LABELS]
 DEFAULT_CURVE_FRACTIONS = [0.2, 0.4, 0.6, 0.8, 1.0]
@@ -148,7 +148,7 @@ def compute_learning_curves(
         n_samples = max(unique_classes, int(round(len(X_train) * fraction)))
         X_subset, y_subset = _sample_training_subset(X_train, y_train, n_samples, random_state)
 
-        classifier = PhaseClassifier(model_type=model_type, random_state=random_state, **model_kwargs)
+        classifier = FlightPhaseClassifier(model_type=model_type, random_state=random_state, **model_kwargs)
         classifier.fit(X_subset, y_subset)
         subset_train_metrics = classifier.evaluate(X_subset, y_subset)
         eval_metrics = classifier.evaluate(X_eval, y_eval)
@@ -167,7 +167,7 @@ def compute_learning_curves(
 
 def save_training_plots(
     experiment: Experiment,
-    classifier: PhaseClassifier,
+    classifier: FlightPhaseClassifier,
     y_train: np.ndarray,
     y_test: np.ndarray,
     y_test_pred: np.ndarray,
@@ -257,7 +257,7 @@ def run_train(args: argparse.Namespace) -> int:
         else:
             raise
 
-    classifier = PhaseClassifier(model_type=args.model, random_state=args.random_state, **model_kwargs)
+    classifier = FlightPhaseClassifier(model_type=args.model, random_state=args.random_state, **model_kwargs)
     try:
         classifier.fit(X_train, y_train)
     except NotImplementedError as exc:
@@ -317,7 +317,7 @@ if __name__ == "__main__":
     train_parser = subparsers.add_parser("train", help="Train a model from a folder of CSV files.")
     train_parser.add_argument("--input-dir", required=True, help="Folder containing training CSV files.")
     train_parser.add_argument("--output-dir", default="outputs", help="Root directory where run artifacts are written.")
-    train_parser.add_argument("--model", required=True, choices=sorted(PhaseClassifier.SUPPORTED_MODEL_TYPES),
+    train_parser.add_argument("--model", required=True, choices=sorted(FlightPhaseClassifier.SUPPORTED_MODEL_TYPES),
                               help="Model type to train.")
     train_parser.add_argument("--model-kwargs", nargs="*", default=[], metavar="KEY=VALUE",
                               help="Optional model-specific hyperparameters, e.g. max_iter=2000 C=0.5")
