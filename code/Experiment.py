@@ -121,6 +121,40 @@ class Experiment:
 
         return path
 
+    def plot_learning_curve_overview(
+        self,
+        x_values: Iterable[float],
+        train_accuracy: Iterable[float],
+        eval_accuracy: Iterable[float],
+        train_weighted_f1: Iterable[float],
+        eval_weighted_f1: Iterable[float],
+        relative_path: str,
+        title: str = "Learning curve overview",
+        xlabel: str = "Training samples",
+    ) -> Path:
+        path = self.path(relative_path)
+        fig, axes = plt.subplots(2, 1, figsize=(9, 8), sharex=True)
+
+        axes[0].plot(list(x_values), list(train_accuracy), marker="o", label="train")
+        axes[0].plot(list(x_values), list(eval_accuracy), marker="o", label="eval")
+        axes[0].set_title(title)
+        axes[0].set_ylabel("Accuracy")
+        axes[0].grid(alpha=0.3)
+        axes[0].legend()
+
+        axes[1].plot(list(x_values), list(train_weighted_f1), marker="o", label="train")
+        axes[1].plot(list(x_values), list(eval_weighted_f1), marker="o", label="eval")
+        axes[1].set_xlabel(xlabel)
+        axes[1].set_ylabel("Weighted F1")
+        axes[1].grid(alpha=0.3)
+        axes[1].legend()
+
+        fig.tight_layout()
+        fig.savefig(path, dpi=200, bbox_inches="tight")
+        plt.close(fig)
+
+        return path
+
     def plot_label_distribution(
         self,
         y: Iterable[int],

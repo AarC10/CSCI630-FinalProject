@@ -182,6 +182,17 @@ def save_training_plots(
 
     curve_rows = curve_results.get("fractions", [])
     if curve_rows:
+        sample_counts = [row["n_samples"] for row in curve_rows]
+        experiment.plot_learning_curve_overview(
+            sample_counts,
+            [row["train_accuracy"] for row in curve_rows],
+            [row["eval_accuracy"] for row in curve_rows],
+            [row["train_weighted_f1"] for row in curve_rows],
+            [row["eval_weighted_f1"] for row in curve_rows],
+            "plots/learning_curve.png",
+            title="Learning curve overview",
+            xlabel="Training samples",
+        )
         x_values = [row["fraction"] for row in curve_rows]
         experiment.plot_metric_curve(
             x_values,
