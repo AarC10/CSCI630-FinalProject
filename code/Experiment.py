@@ -8,8 +8,10 @@ from typing import Any, Iterable, Mapping
 
 import matplotlib
 matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 
 
 class Experiment:
@@ -76,7 +78,18 @@ class Experiment:
         relative_path: str,
         title: str,
     ) -> Path:
-        pass
+        path = self.path(relative_path)
+        matrix = confusion_matrix(y_true, y_pred, labels=labels)
+        fig, ax = plt.subplots(figsize=(9, 7))
+
+        ConfusionMatrixDisplay(confusion_matrix=matrix, display_labels=label_names).plot(ax=ax, xticks_rotation=45, colorbar=False)
+
+        ax.set_title(title)
+
+        fig.tight_layout()
+        fig.savefig(path, dpi=200, bbox_inches="tight")
+
+        plt.close(fig)
 
     def plot_metric_curve(
         self,
@@ -88,7 +101,22 @@ class Experiment:
         ylabel: str,
         xlabel: str = "Training fraction",
     ) -> Path:
-        pass
+        path = self.path(relative_path)
+        fig, ax = plt.subplots(figsize=(8, 5))
+        fig.tight_layout()
+
+        ax.plot(list(x_values), list(train_values), marker="o", label="train")
+        ax.plot(list(x_values), list(eval_values), marker="o", label="eval")
+        ax.set_title(title)
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(ylabel)
+        ax.grid(alpha=0.3)
+        ax.legend()
+
+        fig.savefig(path, dpi=200, bbox_inches="tight")
+        plt.close(fig)
+
+        return path
 
     def plot_label_distribution(
         self,
@@ -97,7 +125,24 @@ class Experiment:
         relative_path: str,
         title: str,
     ) -> Path:
-        pass
+        path = self.path(relative_path)
+        values = np.asarray(list(y), dtype=np.int64)
+        labels, counts = np.unique(values, return_counts=True)
+        names = [phase_mapping.get(int(label), str(label)) for label in labels]
+        fig, ax = plt.subplots(figsize=(9, 5))
+
+        ax.bar(names, counts)
+        ax.set_title(title)
+        ax.set_xlabel("Flight phase")
+        ax.set_ylabel("Count")
+        ax.tick_params(axis="x", rotation=45)
+
+        fig.tight_layout()
+        fig.savefig(path, dpi=200, bbox_inches="tight")
+
+        plt.close(fig)
+
+        return path
 
     def plot_phase_timeline(
         self,
@@ -111,5 +156,31 @@ class Experiment:
         comparison_label: str = "comparison",
         xlabel: str = "Window index",
     ) -> Path:
-        pass
+        path = self.path(relative_path)
+        x_values = np.asarray(list(x_axis), dtype=float)
+        predictions = np.asarray(list(predictions), dtype=np.int64)
+        fig, ax = plt.subplots(figsize=(12, 5))
+
+        ax.step(x_values, predictions, where="post", label="prediction", linewidth=2)
+
+        if ground_truth is not None:
+            ax.step(x_values, np.asarray(list(ground_truth), dtype=np.int64), where="post", label="ground truth", linestyle="--")
+        if comparison_predictions is not None:
+            ax.step(x_values, np.asarray(list(comparison_predictions), dtype=np.int64), where="post", label=comparison_label, alpha=0.8)
+
+        ax.set_title(title)
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel("Flight phase")
+        sorted_labels = sorted(phase_mapping)
+        ax.set_yticks(sorted_labels)
+        ax.set_yticklabels([phase_mapping[label] for label in sorted_labels])
+        ax.grid(alpha=0.3)
+        ax.legend()
+
+        fig.tight_layout()
+        fig.savefig(path, dpi=200, bbox_inches="tight")
+
+        plt.close(fig)
+
+        return path
 
