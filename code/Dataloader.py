@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from pathlib import Path
-from typing import Tuple, List
+from typing import Tuple, List, Dict, Any
 from sklearn.model_selection import train_test_split
 import logging
 
@@ -10,6 +10,8 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 class Dataloader:
     SENSOR_COLS = ["AIR_PRESSURE", "AIR_TEMPERATURE", "ACCELERATION_XY", "ACCELERATION_Z"]
+    LABEL_COL = "flight_phase"
+    TIME_COL = "TIME"
 
     # Flight phase mapping
     PHASE_MAPPING = {
@@ -35,50 +37,76 @@ class Dataloader:
         logging.info(f"DataLoader initialized with sequence_length={sequence_length}, "
                     f"stride={stride}, test_size={test_size}")
 
-    def _create_sliding_windows(self, df: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray]:
-        # Extract sensor data and labels
-        sensor_data = df[self.SENSOR_COLS].values  # (n_timesteps, n_channels)
-        labels = df['flight_phase'].values  # (n_timesteps,)
+    def _validate_required_columns(self, df: pd.DataFrame, source_name: str) -> None:
+        missing_cols = set(self.SENSOR_COLS + [self.LABEL_COL]) - set(df.columns)
+        if missing_cols:
+            raise ValueError(f"{source_name} is missing required columns: {sorted(missing_cols)}")
+
+    def _create_sliding_windows_with_metadata(self, df: pd.DataFrame, source_name: str = "unknown") -> Tuple[np.ndarray, np.ndarray, List[Dict[str, Any]]]:
+        sensor_data = df[self.SENSOR_COLS].values
+        labels = df[self.LABEL_COL].values
+        times = df[self.TIME_COL].values if self.TIME_COL in df.columns else None
 
         n_timesteps, n_channels = sensor_data.shape
         n_windows = (n_timesteps - self.sequence_length) // self.stride + 1
 
         if n_windows <= 0:
-            return np.array([]), np.array([])
+            return np.array([]), np.array([]), []
 
         X_windows = []
         y_windows = []
+        metadata = []
 
         for i in range(n_windows):
             start_idx = i * self.stride
             end_idx = start_idx + self.sequence_length
 
-            # Yoink the window
-            window = sensor_data[start_idx:end_idx]  # (sequence_length, n_channels)
-            window_labels = labels[start_idx:end_idx]  # (sequence_length,)
+            window = sensor_data[start_idx:end_idx]
+            window_labels = labels[start_idx:end_idx]
 
-            # Skip windows with NaN values
             if np.any(np.isnan(window)):
                 continue
 
-            # Transpose for aeon so its (n_channels, sequence_length)
-            window = window.T
-
-            # Majority vote for window label
             unique, counts = np.unique(window_labels, return_counts=True)
             majority_label = unique[np.argmax(counts)]
 
-            X_windows.append(window)
+            X_windows.append(window.T)
             y_windows.append(majority_label)
+            metadata.append(
+                {
+                    "source_file": source_name,
+                    "window_index": len(metadata),
+                    "start_idx": int(start_idx),
+                    "end_idx": int(end_idx - 1),
+                    "start_time": None if times is None else float(times[start_idx]),
+                    "end_time": None if times is None else float(times[end_idx - 1]),
+                    "majority_label": int(majority_label),
+                    "majority_label_name": self.PHASE_MAPPING.get(int(majority_label), "unknown"),
+                }
+            )
 
         if len(X_windows) == 0:
-            return np.array([]), np.array([])
+            return np.array([]), np.array([]), []
 
-        # Stack into arrays
-        X_windows = np.array(X_windows)  # (n_windows, n_channels, sequence_length)
-        y_windows = np.array(y_windows)  # (n_windows,)
+        return np.array(X_windows), np.array(y_windows), metadata
 
+    def _create_sliding_windows(self, df: pd.DataFrame) -> Tuple[np.ndarray, np.ndarray]:
+        X_windows, y_windows, _ = self._create_sliding_windows_with_metadata(df)
         return X_windows, y_windows
+
+    def load_file(self, file_path: str | Path, include_metadata: bool = False):
+        file_path = Path(file_path)
+        if not file_path.exists():
+            raise ValueError(f"CSV file does not exist: {file_path}")
+
+        df = pd.read_csv(file_path)
+        self._validate_required_columns(df, file_path.name)
+        X_windows, y_windows, metadata = self._create_sliding_windows_with_metadata(df, source_name=file_path.name)
+
+        if len(X_windows) == 0:
+            raise ValueError(f"No valid windows could be generated from {file_path}")
+
+        return (X_windows, y_windows, metadata) if include_metadata else (X_windows, y_windows)
 
     def load_data(self, max_files: int = None) -> Tuple[np.ndarray, np.ndarray]:
         csv_files = sorted(list(self.data_path.glob("*.csv")))
@@ -98,15 +126,8 @@ class Dataloader:
         for i, file_path in enumerate(csv_files):
             try:
                 df = pd.read_csv(file_path)
+                self._validate_required_columns(df, file_path.name)
 
-                # COnfirm required columns are present
-                missing_cols = set(self.SENSOR_COLS + ['flight_phase']) - set(df.columns)
-                if missing_cols:
-                    logging.warning(f"Skipping {file_path.name}: missing columns {missing_cols}")
-                    skipped_files += 1
-                    continue
-
-                # Create sliding windows
                 X_windows, y_windows = self._create_sliding_windows(df)
 
                 if len(X_windows) > 0:
@@ -117,7 +138,7 @@ class Dataloader:
                     logging.info(f"Processed {i + 1}/{len(csv_files)} files")
 
             except Exception as e:
-                logging.error(f"Error processing {file_path.name}: {e}")
+                logging.warning(f"Skipping {file_path.name}: {e}")
                 skipped_files += 1
                 continue
 
@@ -166,9 +187,9 @@ class Dataloader:
         if n_files == 0:
             return {"error": "No CSV files found"}
 
-        # Sample first file to estimate
         sample_file = csv_files[0]
         df = pd.read_csv(sample_file)
+        self._validate_required_columns(df, sample_file.name)
 
         n_timesteps = len(df)
         n_channels = len(self.SENSOR_COLS)
