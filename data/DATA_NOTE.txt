@@ -1,3 +1,6 @@
+3456 simulations generated per rocket so with 17 rockets that is 58,752 simulations in total.
+Will actually be 58,335 simulations in total generated whichs hould be more than enough
+
 L1 Rockets - 2
 --------------
 L1Kit
@@ -16,7 +19,6 @@ Mayflower
 MightyEagle
 Olympia
 Prometheus
-Tuatara (two stage)
 
 
 L3 Rockets - 6
@@ -33,3 +35,5 @@ Not Included - 3
 Dragonfly44
 Enceladus
 Icarus
+Tuatara (two stage)
+
