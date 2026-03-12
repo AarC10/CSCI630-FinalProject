@@ -11,7 +11,7 @@ class LogisticRegression:
         random_state: int | None = 42,
         max_iter: int = 1000,
         C: float = 1.0,
-        solver: str = "saga",
+        solver: str = "lfbgs",
         **kwargs,
     ):
         self.random_state = random_state
