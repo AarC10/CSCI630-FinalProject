@@ -75,7 +75,7 @@ EVENT_PRIORITY = [
     "event_burnout",
     "event_apogee",
     "event_recovery_deployment",
-    "event_landing",
+    # "event_landing",
 ]
 
 # Integer label for each event. 0 is reserved for no_event.
