@@ -9,6 +9,7 @@ from sklearn.metrics import accuracy_score, f1_score
 
 from LogisticRegression import LogisticRegression
 from Catch22 import Catch22LogisticRegression
+from MiniRocket import MiniRocket
 
 logger = logging.getLogger(__name__)
 
@@ -52,8 +53,8 @@ class FlightPhaseClassifier:
         if self.model_type == "tsf":
             raise NotImplementedError("TODO")
 
-        if self.model_type == "rocket":
-            raise NotImplementedError("TODO")
+        if self.model_type == "minirocket":
+            return MiniRocket(random_state=self.random_state, **self.model_kwargs)
 
         raise RuntimeError(f"Unhandled model_type: {self.model_type}")
 
