@@ -8,6 +8,7 @@ import logging
 from sklearn.metrics import accuracy_score, f1_score
 
 from LogisticRegression import LogisticRegression
+from Catch22 import Catch22LogisticRegression
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +44,7 @@ class FlightPhaseClassifier:
             return LogisticRegression(random_state=self.random_state, **self.model_kwargs)
 
         if self.model_type == "catch22_lr":
-            raise NotImplementedError("TODO")
+            return Catch22LogisticRegression(random_state=self.random_state, **self.model_kwargs)
 
         if self.model_type == "knn":
             raise NotImplementedError("TODO")
