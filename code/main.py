@@ -3,6 +3,7 @@ import logging
 import traceback
 
 from pathlib import Path
+from time import perf_counter
 from typing import Iterable
 
 from sklearn.model_selection import train_test_split
@@ -141,15 +142,29 @@ def compute_learning_curves(
     X_eval: np.ndarray,
     y_eval: np.ndarray,
     fractions: Iterable[float],
+    progress_every: int = 1,
 ) -> dict[str, Any]:
     unique_classes = max(1, len(np.unique(y_train)))
     curve_rows = []
-    for fraction in fractions:
-        fraction = float(fraction)
-        if fraction <= 0 or fraction > 1:
-            continue
+    valid_fractions = [float(fraction) for fraction in fractions if 0 < float(fraction) <= 1]
+    total_fractions = len(valid_fractions)
+    progress_every = max(1, int(progress_every))
+    loop_start = perf_counter()
+
+    for idx, fraction in enumerate(valid_fractions, start=1):
         n_samples = max(unique_classes, int(round(len(X_train) * fraction)))
         X_subset, y_subset = _sample_training_subset(X_train, y_train, n_samples, random_state)
+
+        if idx == 1 or idx == total_fractions or idx % progress_every == 0:
+            elapsed = perf_counter() - loop_start
+            LOGGER.info(
+                "Learning curve %d/%d | fraction=%.3f | n_samples=%d | elapsed=%.1fs",
+                idx,
+                total_fractions,
+                fraction,
+                len(X_subset),
+                elapsed,
+            )
 
         classifier = FlightPhaseClassifier(model_type=model_type, random_state=random_state, **model_kwargs)
         classifier.fit(X_subset, y_subset)
@@ -237,6 +252,7 @@ def run_train(args: argparse.Namespace) -> int:
         stride=args.stride,
         test_size=args.test_size,
         random_state=args.random_state,
+        progress_every_files=args.progress_every_files,
     )
 
     experiment = Experiment(args.output_dir, action="train", model_name=args.model)
@@ -257,6 +273,7 @@ def run_train(args: argparse.Namespace) -> int:
     experiment.save_json("memory_estimate.json", dataloader.estimate_memory(n_files=args.max_files))
 
     try:
+        LOGGER.info("Starting data load and train/test split...")
         X_train, X_test, y_train, y_test = dataloader.get_train_test_split(
             max_files=args.max_files,
             stratify=not args.no_stratify,
@@ -273,7 +290,10 @@ def run_train(args: argparse.Namespace) -> int:
 
     classifier = FlightPhaseClassifier(model_type=args.model, random_state=args.random_state, **model_kwargs)
     try:
+        LOGGER.info("Starting model fit for '%s'...", args.model)
+        fit_start = perf_counter()
         classifier.fit(X_train, y_train)
+        LOGGER.info("Model fit complete in %.1f seconds.", perf_counter() - fit_start)
     except NotImplementedError as exc:
         experiment.save_text("not_implemented.txt", str(exc))
         raise SystemExit(f"Model '{args.model}' is not implemented yet: {exc}") from exc
@@ -285,6 +305,7 @@ def run_train(args: argparse.Namespace) -> int:
     )
 
     try:
+        LOGGER.info("Running train/test evaluation...")
         train_metrics = classifier.evaluate(X_train, y_train)
         test_metrics = classifier.evaluate(X_test, y_test)
         y_test_pred = classifier.predict(X_test)
@@ -301,6 +322,7 @@ def run_train(args: argparse.Namespace) -> int:
         )
         experiment.save_json("best_model_status.json", best_model_result)
 
+        LOGGER.info("Computing learning curves for fractions: %s", args.curve_fractions)
         curve_results = compute_learning_curves(
             model_type=args.model,
             model_kwargs=model_kwargs,
@@ -310,6 +332,7 @@ def run_train(args: argparse.Namespace) -> int:
             X_eval=X_test,
             y_eval=y_test,
             fractions=args.curve_fractions,
+            progress_every=args.progress_every_fractions,
         )
 
         prediction_df = pd.DataFrame(
@@ -335,6 +358,7 @@ def run_train(args: argparse.Namespace) -> int:
         )
         save_training_plots(experiment, classifier, y_train, y_test, y_test_pred, curve_results)
 
+        LOGGER.info("Training artifacts and plots saved to: %s", experiment.run_dir)
         print(f"Training complete. Run artifacts saved to: {experiment.run_dir}")
         print(f"Test accuracy: {test_metrics['accuracy']:.4f} | Weighted F1: {test_metrics['weighted_f1']:.4f}")
         if best_model_result["promoted"]:
@@ -375,6 +399,10 @@ if __name__ == "__main__":
                               help="Random seed for splitting and any stochastic model behavior.")
     train_parser.add_argument("--curve-fractions", type=float, nargs="+", default=DEFAULT_CURVE_FRACTIONS,
                               help="Fractions of the training set used to generate learning curves.")
+    train_parser.add_argument("--progress-every-files", type=int, default=100,
+                              help="Print/load progress every N CSV files while creating windows.")
+    train_parser.add_argument("--progress-every-fractions", type=int, default=1,
+                              help="Print progress every N learning-curve fractions.")
     train_parser.add_argument("--no-stratify", action="store_true", help="Disable stratified train/test splitting.")
     train_parser.set_defaults(func=run_train)
 

@@ -14,7 +14,7 @@ from MiniRocket import MiniRocket
 logger = logging.getLogger(__name__)
 
 class FlightPhaseClassifier:
-    SUPPORTED_MODEL_TYPES = {"lr", "knn", "tsf", "rocket", "catch22_lr"}
+    SUPPORTED_MODEL_TYPES = {"lr", "knn", "tsf", "minirocket", "catch22_lr"}
     PHASE_MAPPING = {
         0: "no_event",
         1: "liftoff",

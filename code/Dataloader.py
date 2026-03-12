@@ -24,18 +24,19 @@ class Dataloader:
     }
 
     def __init__(self, data_path: str, sequence_length: int = 100, stride: int = 50,
-                 test_size: float = 0.2, random_state: int = 42):
+                 test_size: float = 0.2, random_state: int = 42, progress_every_files: int = 100):
         self.data_path = Path(data_path)
         self.sequence_length = sequence_length
         self.stride = stride
         self.test_size = test_size
         self.random_state = random_state
+        self.progress_every_files = max(1, int(progress_every_files))
 
         if not self.data_path.exists():
             raise ValueError(f"Data path does not exist: {self.data_path}")
 
         logging.info(f"DataLoader initialized with sequence_length={sequence_length}, "
-                    f"stride={stride}, test_size={test_size}")
+                    f"stride={stride}, test_size={test_size}, progress_every_files={self.progress_every_files}")
 
     def _validate_required_columns(self, df: pd.DataFrame, source_name: str) -> None:
         missing_cols = set(self.SENSOR_COLS + [self.LABEL_COL]) - set(df.columns)
@@ -134,8 +135,11 @@ class Dataloader:
                     all_X.append(X_windows)
                     all_y.append(y_windows)
 
-                if (i + 1) % 500 == 0:
-                    logging.info(f"Processed {i + 1}/{len(csv_files)} files")
+                if (i + 1) % self.progress_every_files == 0:
+                    logging.info(
+                        f"Processed {i + 1}/{len(csv_files)} files "
+                        f"({(i + 1) / len(csv_files):.1%})"
+                    )
 
             except Exception as e:
                 logging.warning(f"Skipping {file_path.name}: {e}")
