@@ -17,6 +17,7 @@ class MiniRocket:
     def _build_model(self):
         return MiniRocketClassifier(
             n_kernels=self.num_kernels,
+            n_jobs=-1,
             random_state=self.random_state,
             **self.kwargs,
         )

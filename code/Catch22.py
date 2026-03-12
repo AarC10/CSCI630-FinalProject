@@ -28,6 +28,7 @@ class Catch22LogisticRegression:
                 solver=self.solver,
                 **self.kwargs,
             ),
+            n_jobs=-1,
         )
 
     def fit(self, X: np.ndarray, y: np.ndarray):
