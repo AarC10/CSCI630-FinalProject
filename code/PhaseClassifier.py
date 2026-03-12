@@ -19,7 +19,8 @@ class FlightPhaseClassifier:
         2: "burnout",
         3: "apogee",
         4: "recovery_deployment",
-        5: "landing",
+        # Excluding landing since most of the dataset hasn't labelled this for some reason :P
+        # 5: "landing",
     }
 
     def __init__(self, model_type: str, random_state: Optional[int] = 42, **model_kwargs: Any):
