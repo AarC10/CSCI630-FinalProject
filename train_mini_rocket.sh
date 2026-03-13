@@ -1,7 +1,6 @@
 python3 code/main.py train \
   --input-dir ../dataset \
   --model minirocket \
-#  --max-files 2000 \
-  --model-kwargs class_weight=balanced solver=lbfgs tol=1e-2 max_iter=3000 \
+  --model-kwargs num_kernels=1000 class_weight=balanced \
   --sequence-length 100 \
   --stride 50
