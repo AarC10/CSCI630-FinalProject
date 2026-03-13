@@ -1,0 +1,17 @@
+{
+  "X_memory_MB": 3382.4615478515625,
+  "X_shape": [
+    1108365,
+    4,
+    100
+  ],
+  "estimated_windows_per_file": 19,
+  "n_files": 58335,
+  "total_estimated_windows": 1108365,
+  "total_memory_GB": 3.311443068087101,
+  "total_memory_MB": 3390.9177017211914,
+  "y_memory_MB": 8.456153869628906,
+  "y_shape": [
+    1108365
+  ]
+}

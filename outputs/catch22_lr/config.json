@@ -1,0 +1,24 @@
+{
+  "command": "train",
+  "curve_fractions": [
+    0.2,
+    0.4,
+    0.6,
+    0.8,
+    1.0
+  ],
+  "input_dir": "/home/aaron/Development/RIT/CSCI630/dataset",
+  "max_files": null,
+  "model": "catch22_lr",
+  "model_kwargs": {
+    "class_weight": "balanced",
+    "max_iter": 3000,
+    "solver": "lbfgs",
+    "tol": 0.01
+  },
+  "random_state": 42,
+  "sequence_length": 100,
+  "stratify": true,
+  "stride": 50,
+  "test_size": 0.2
+}
