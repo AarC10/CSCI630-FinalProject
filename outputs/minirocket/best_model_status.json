@@ -1,0 +1,9 @@
+{
+  "active_source_run_dir": "/home/fall2021/amc9897/CSCI630-FinalProject/outputs/20260313_164531_train_minirocket",
+  "best_model_metadata_path": "/home/fall2021/amc9897/CSCI630-FinalProject/outputs/best_model_metadata.json",
+  "best_model_path": "/home/fall2021/amc9897/CSCI630-FinalProject/outputs/best_model.pkl",
+  "candidate_weighted_f1": 0.960688371762936,
+  "previous_best_weighted_f1": null,
+  "promoted": true,
+  "selection_metric": "test.weighted_f1"
+}

@@ -1,0 +1,40 @@
+2026-03-13 16:50:36,982 - INFO - Loaded 58335 files successfully (0 skipped)
+2026-03-13 16:50:36,983 - INFO - Generated 1128334 windows with shape (1128334, 4, 100)
+2026-03-13 16:50:36,990 - INFO - Class distribution: {np.int64(0): np.int64(1024272), np.int64(1): np.int64(31466), np.int64(2): np.int64(57321), np.int64(3): np.int64(7316), np.int64(4): np.int64(7959)}
+2026-03-13 16:50:39,081 - INFO - Train set: 902667 samples
+2026-03-13 16:50:39,081 - INFO - Test set: 225667 samples
+2026-03-13 16:50:39,085 - INFO - Train class distribution: {np.int64(0): np.int64(819417), np.int64(1): np.int64(25173), np.int64(2): np.int64(45857), np.int64(3): np.int64(5853), np.int64(4): np.int64(6367)}
+2026-03-13 16:50:39,086 - INFO - Test class distribution: {np.int64(0): np.int64(204855), np.int64(1): np.int64(6293), np.int64(2): np.int64(11464), np.int64(3): np.int64(1463), np.int64(4): np.int64(1592)}
+2026-03-13 16:50:39,094 - INFO - Starting model fit for 'minirocket'...
+2026-03-13 16:54:55,045 - INFO - Finished fitting minirocket model in 255.64 seconds.
+2026-03-13 16:54:55,045 - INFO - Model fit complete in 256.0 seconds.
+2026-03-13 16:54:55,137 - INFO - Running train/test evaluation...
+2026-03-13 16:55:36,515 - INFO - Finished predicting 902667 samples in 40.69 seconds.
+2026-03-13 16:55:47,151 - INFO - Finished predicting 225667 samples in 10.32 seconds.
+2026-03-13 16:55:57,563 - INFO - Finished predicting 225667 samples in 10.22 seconds.
+2026-03-13 16:55:57,664 - INFO - Computing learning curves for fractions: [0.2, 0.4, 0.6, 0.8, 1.0]
+2026-03-13 16:55:59,424 - INFO - Learning curve 1/5 | fraction=0.200 | n_samples=180533 | elapsed=1.8s
+2026-03-13 16:56:39,639 - INFO - Finished fitting minirocket model in 40.13 seconds.
+2026-03-13 16:56:48,195 - INFO - Finished predicting 180533 samples in 8.35 seconds.
+2026-03-13 16:56:59,036 - INFO - Finished predicting 225667 samples in 10.33 seconds.
+2026-03-13 16:57:00,755 - INFO - Learning curve 2/5 | fraction=0.400 | n_samples=361067 | elapsed=63.1s
+2026-03-13 16:58:20,510 - INFO - Finished fitting minirocket model in 79.60 seconds.
+2026-03-13 16:58:37,116 - INFO - Finished predicting 361067 samples in 16.31 seconds.
+2026-03-13 16:58:47,680 - INFO - Finished predicting 225667 samples in 10.24 seconds.
+2026-03-13 16:58:49,331 - INFO - Learning curve 3/5 | fraction=0.600 | n_samples=541600 | elapsed=171.7s
+2026-03-13 17:00:52,789 - INFO - Finished fitting minirocket model in 123.25 seconds.
+2026-03-13 17:01:17,903 - INFO - Finished predicting 541600 samples in 24.67 seconds.
+2026-03-13 17:01:28,753 - INFO - Finished predicting 225667 samples in 10.28 seconds.
+2026-03-13 17:01:30,418 - INFO - Learning curve 4/5 | fraction=0.800 | n_samples=722134 | elapsed=332.7s
+2026-03-13 17:04:23,684 - INFO - Finished fitting minirocket model in 172.93 seconds.
+2026-03-13 17:04:58,232 - INFO - Finished predicting 722134 samples in 33.67 seconds.
+2026-03-13 17:05:08,921 - INFO - Finished predicting 225667 samples in 10.31 seconds.
+2026-03-13 17:05:08,983 - INFO - Learning curve 5/5 | fraction=1.000 | n_samples=902667 | elapsed=551.3s
+2026-03-13 17:08:42,665 - INFO - Finished fitting minirocket model in 212.65 seconds.
+2026-03-13 17:09:25,109 - INFO - Finished predicting 902667 samples in 41.59 seconds.
+2026-03-13 17:09:35,948 - INFO - Finished predicting 225667 samples in 10.32 seconds.
+2026-03-13 17:09:38,894 - INFO - Training artifacts and plots saved to: outputs/20260313_164531_train_minirocket
+Training complete. Run artifacts saved to: outputs/20260313_164531_train_minirocket
+Test accuracy: 0.9506 | Weighted F1: 0.9607
+Promoted this run to best model: /home/fall2021/amc9897/CSCI630-FinalProject/outputs/best_model.pkl
+

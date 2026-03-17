@@ -8,19 +8,25 @@ import logging
 from sklearn.metrics import accuracy_score, f1_score
 
 from LogisticRegression import LogisticRegression
+
 from Knn import KNN
+
+from Catch22 import Catch22LogisticRegression
+from MiniRocket import MiniRocket
+
 
 logger = logging.getLogger(__name__)
 
 class FlightPhaseClassifier:
-    SUPPORTED_MODEL_TYPES = {"lr", "knn", "tsf", "rocket", "catch22_lr"}
+    SUPPORTED_MODEL_TYPES = {"lr", "knn", "tsf", "minirocket", "catch22_lr"}
     PHASE_MAPPING = {
         0: "no_event",
         1: "liftoff",
         2: "burnout",
         3: "apogee",
         4: "recovery_deployment",
-        5: "landing",
+        # Excluding landing since most of the dataset hasn't labelled this for some reason :P
+        # 5: "landing",
     }
 
     def __init__(self, model_type: str, random_state: Optional[int] = 42, **model_kwargs: Any):
@@ -43,7 +49,7 @@ class FlightPhaseClassifier:
             return LogisticRegression(random_state=self.random_state, **self.model_kwargs)
 
         if self.model_type == "catch22_lr":
-            raise NotImplementedError("TODO")
+            return Catch22LogisticRegression(random_state=self.random_state, **self.model_kwargs)
 
         if self.model_type == "knn":
             raise KNN()
@@ -51,8 +57,8 @@ class FlightPhaseClassifier:
         if self.model_type == "tsf":
             raise NotImplementedError("TODO")
 
-        if self.model_type == "rocket":
-            raise NotImplementedError("TODO")
+        if self.model_type == "minirocket":
+            return MiniRocket(random_state=self.random_state, **self.model_kwargs)
 
         raise RuntimeError(f"Unhandled model_type: {self.model_type}")
 
@@ -139,6 +145,7 @@ class FlightPhaseClassifier:
         return {
             "accuracy": float(accuracy_score(y, predictions)),
             "weighted_f1": float(f1_score(y, predictions, average="weighted", zero_division=0)),
+            "macro_f1": float(f1_score(y, predictions, average="macro", zero_division=0)),
             "per_class_f1": {label: float(score) for label, score in zip(labels, per_class_scores)},
             "train_time": float(self.train_time),
             "inference_time": float(self.last_inference_time),

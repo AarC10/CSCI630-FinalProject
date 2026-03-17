@@ -1,17 +1,15 @@
 import numpy as np
-
-from sklearn.linear_model import LogisticRegression as SklearnLogisticRegression
-from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import StandardScaler
+from aeon.classification.feature_based import Catch22Classifier
+from sklearn.linear_model import LogisticRegression
 
 
-class LogisticRegression:
+class Catch22LogisticRegression:
     def __init__(
         self,
         random_state: int | None = 42,
         max_iter: int = 1000,
         C: float = 1.0,
-        solver: str = "lfbgs",
+        solver: str = "saga",
         **kwargs,
     ):
         self.random_state = random_state
@@ -22,26 +20,20 @@ class LogisticRegression:
         self.model = self._build_model()
 
     def _build_model(self):
-        return make_pipeline(
-            StandardScaler(),
-            SklearnLogisticRegression(
+        return Catch22Classifier(
+            estimator=LogisticRegression(
                 random_state=self.random_state,
                 max_iter=self.max_iter,
                 C=self.C,
                 solver=self.solver,
                 **self.kwargs,
             ),
+            n_jobs=-1,
         )
 
-    def _flatten(self, X: np.ndarray) -> np.ndarray:
-        X = np.asarray(X)
-        if X.ndim != 3:
-            raise ValueError(f"Expected X with shape (n_samples, n_channels, n_timesteps). Got {X.shape}.")
-        return X.reshape(X.shape[0], -1)
-
     def fit(self, X: np.ndarray, y: np.ndarray):
-        self.model.fit(self._flatten(X), np.asarray(y))
+        self.model.fit(X, np.asarray(y))
         return self
 
     def predict(self, X: np.ndarray) -> np.ndarray:
-        return self.model.predict(self._flatten(X))
+        return self.model.predict(X)

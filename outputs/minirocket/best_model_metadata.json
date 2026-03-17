@@ -1,0 +1,14 @@
+{
+  "best_model_path": "/home/fall2021/amc9897/CSCI630-FinalProject/outputs/best_model.pkl",
+  "model": "minirocket",
+  "promoted_at_utc": "2026-03-13T20:55:57.625530+00:00",
+  "random_state": 42,
+  "selection_metric": "test.weighted_f1",
+  "sequence_length": 100,
+  "source_metrics_path": "/home/fall2021/amc9897/CSCI630-FinalProject/outputs/20260313_164531_train_minirocket/metrics.json",
+  "source_model_path": "/home/fall2021/amc9897/CSCI630-FinalProject/outputs/20260313_164531_train_minirocket/model.pkl",
+  "source_run_dir": "/home/fall2021/amc9897/CSCI630-FinalProject/outputs/20260313_164531_train_minirocket",
+  "stride": 50,
+  "test_size": 0.2,
+  "weighted_f1": 0.960688371762936
+}
