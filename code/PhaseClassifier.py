@@ -8,6 +8,7 @@ import logging
 from sklearn.metrics import accuracy_score, f1_score
 
 from LogisticRegression import LogisticRegression
+from Knn import KNN
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +46,7 @@ class FlightPhaseClassifier:
             raise NotImplementedError("TODO")
 
         if self.model_type == "knn":
-            raise NotImplementedError("TODO")
+            raise KNN()
 
         if self.model_type == "tsf":
             raise NotImplementedError("TODO")
