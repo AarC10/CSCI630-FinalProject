@@ -5,16 +5,12 @@ This demonstrates how to use the generated datasets for event classification.
 """
 import pandas as pd
 import numpy as np
-from pathlib import Path
+
+
 from sklearn.neighbors import KNeighborsRegressor # Use KNeighborsRegressor for regression KNeighborsClassifier
-from sklearn.impute import KNNImputer 
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split, TimeSeriesSplit
-from sklearn.metrics import classification_report, confusion_matrix, f1_score
 from sklearn.preprocessing import StandardScaler
 from sklearn.utils.class_weight import compute_class_weight
-import matplotlib.pyplot as plt
-import seaborn as sns
+
 
 from sklearn.pipeline import make_pipeline
 from scipy.spatial import distance
@@ -23,12 +19,20 @@ class KNN:
     #n_neighbors = [1,2,3,4,5]
 
     def __init__(
-            self,
-            n_neighbor: int | None = 5,
+           self,
+        random_state: int | None = 42,
+        max_iter: int = 1000,
+        C: float = 1.0,
+        solver: str = "lfbgs",
+        **kwargs,
     ):
-        self.n_neighbors = [1,2,3,4,5]
-        #self.metric = dtw_metric
-        self.mode
+        self.random_state = random_state
+        self.max_iter = max_iter
+        self.C = C
+        self.solver = solver
+        self.kwargs = kwargs
+        self.model = self._build_model()
+
     
     def dtw_metric(a , b):
          # Implementation of the DTW distance calculation
@@ -52,3 +56,6 @@ class KNN:
     def fit (self, X: pd.DataFrame, y: pd.Series):
         self.model.fit(X,y )
         return self
+
+    def predict(self, X: np.ndarray) -> np.ndarray:
+        return self.model.predict(X)
