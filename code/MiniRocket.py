@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import numpy as np
 from aeon.classification.convolution_based import MiniRocketClassifier
 

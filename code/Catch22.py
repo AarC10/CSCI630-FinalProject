@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import numpy as np
 from aeon.classification.feature_based import Catch22Classifier
 from sklearn.linear_model import LogisticRegression

@@ -1,8 +1,10 @@
-#!/usr/bin/env python3
+
 """
 Example script for training event classifiers on rocket flight data.
 This demonstrates how to use the generated datasets for event classification.
 """
+from __future__ import annotations
+
 import pandas as pd
 import numpy as np
 
