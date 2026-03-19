@@ -52,7 +52,10 @@ class KNN:
     def _build_model(self):
         return make_pipeline(
             StandardScaler(),
-            KNeighborsRegressor(n_neighbors = self.n_neighbors, metric = self.dtw_metric)
+            KNeighborsRegressor(n_kernels=self.num_kernels,
+            n_jobs=-1,
+            random_state=self.random_state,
+            **self.kwargs,)
         )
     
     def fit (self, X: pd.DataFrame, y: pd.Series):
