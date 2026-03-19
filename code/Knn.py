@@ -22,20 +22,17 @@ class KNN:
 
     def __init__(
            self,
-        random_state: int | None = 42,
-        max_iter: int = 1000,
-        C: float = 1.0,
-        solver: str = "lfbgs",
+        n_neighbors: int | None = 5,
+        weights: str = "uniform",
+        metric: str = "minkowski",
         **kwargs,
     ):
-        self.random_state = random_state
-        self.max_iter = max_iter
-        self.C = C
-        self.solver = solver
+        self.n_neighbors = n_neighbors
+        self.weights = weights
+        self.metric = metric
         self.kwargs = kwargs
-        self.model = self._build_model()
+        self.model=self._build_model()
 
-    
     def dtw_metric(a , b):
          # Implementation of the DTW distance calculation
         an = a.size
@@ -52,10 +49,11 @@ class KNN:
     def _build_model(self):
         return make_pipeline(
             StandardScaler(),
-            KNeighborsRegressor(n_kernels=self.num_kernels,
-            n_jobs=-1,
-            random_state=self.random_state,
-            **self.kwargs,)
+            KNeighborsRegressor(n_neighbors=self.n_neighbors,
+                                 weights=self.weights,
+                                 metric=self.metric,
+                                 n_jobs=1,
+                                 **self.kwargs)
         )
     
     def fit (self, X: pd.DataFrame, y: pd.Series):

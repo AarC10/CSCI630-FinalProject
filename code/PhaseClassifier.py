@@ -52,7 +52,7 @@ class FlightPhaseClassifier:
             return Catch22LogisticRegression(random_state=self.random_state, **self.model_kwargs)
 
         if self.model_type == "knn":
-            raise KNN(random_state=self.random_state, **self.model_kwargs)
+            raise KNN(**self.model_kwargs)
 
         if self.model_type == "tsf":
             raise NotImplementedError("TODO")
