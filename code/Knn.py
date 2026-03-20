@@ -25,12 +25,12 @@ class KNN:
         n_neighbors: int | None = 5,
         weights: str = "uniform",
         metric: str = "minkowski",
-        **kwargs,
+       # **kwargs,
     ):
         self.n_neighbors = n_neighbors
         self.weights = weights
         self.metric = metric
-        self.kwargs = kwargs
+       # self.kwargs = kwargs
         self.model=self._build_model()
 
     def dtw_metric(a , b):
@@ -53,12 +53,18 @@ class KNN:
                                  weights=self.weights,
                                  metric=self.metric,
                                  n_jobs=1,
-                                 **self.kwargs)
+                                 )
         )
     
-    def fit (self, X: pd.DataFrame, y: pd.Series):
-        self.model.fit(X,y )
+    def _flatten(self, X: np.ndarray) -> np.ndarray:
+        X = np.asarray(X)
+        #if X.ndim != 3:
+        #    raise ValueError(f"Expected X with shape (n_samples, n_channels, n_timesteps). Got {X.shape}.")
+        return X.reshape(X.shape[0], -1)
+
+    def fit(self, X: np.ndarray, y: np.ndarray):
+        self.model.fit(self._flatten(X), np.asarray(y))
         return self
 
     def predict(self, X: np.ndarray) -> np.ndarray:
-        return self.model.predict(X)
+        return self.model.predict(self._flatten(X))
