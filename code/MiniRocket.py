@@ -26,7 +26,6 @@ class MiniRocket:
             C=self.C,
             max_iter=self.max_iter,
             solver="lbfgs",
-            multi_class="multinomial",
             class_weight=self.class_weight,
             random_state=self.random_state,
         )
