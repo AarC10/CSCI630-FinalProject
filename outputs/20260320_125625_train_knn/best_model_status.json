@@ -1,0 +1,9 @@
+{
+  "active_source_run_dir": "/home/aaron/Development/RIT/CSCI630/CSCI630-FinalProject/outputs/20260312_155712_train_lr",
+  "best_model_metadata_path": "/Users/shikhershah/Desktop/RIT/CSCI630/Project/outputs/best_model_metadata.json",
+  "best_model_path": "/Users/shikhershah/Desktop/RIT/CSCI630/Project/outputs/best_model.pkl",
+  "candidate_weighted_f1": 0.980474953532398,
+  "previous_best_weighted_f1": 0.9887489128847656,
+  "promoted": false,
+  "selection_metric": "test.weighted_f1"
+}
