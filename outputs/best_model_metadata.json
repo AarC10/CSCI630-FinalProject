@@ -1,14 +1,14 @@
 {
-  "best_model_path": "/home/aaron/Development/RIT/CSCI630/CSCI630-FinalProject/outputs/best_model.pkl",
-  "model": "lr",
-  "promoted_at_utc": "2026-03-12T19:57:42.717877+00:00",
+  "best_model_path": "/home/fall2021/amc9897/CSCI630-FinalProject/outputs/best_model.pkl",
+  "model": "minirocket",
+  "promoted_at_utc": "2026-03-23T17:15:52.251727+00:00",
   "random_state": 42,
   "selection_metric": "test.weighted_f1",
   "sequence_length": 100,
-  "source_metrics_path": "/home/aaron/Development/RIT/CSCI630/CSCI630-FinalProject/outputs/20260312_155712_train_lr/metrics.json",
-  "source_model_path": "/home/aaron/Development/RIT/CSCI630/CSCI630-FinalProject/outputs/20260312_155712_train_lr/model.pkl",
-  "source_run_dir": "/home/aaron/Development/RIT/CSCI630/CSCI630-FinalProject/outputs/20260312_155712_train_lr",
-  "stride": 35,
+  "source_metrics_path": "/home/fall2021/amc9897/CSCI630-FinalProject/outputs/20260323_102518_train_minirocket/metrics.json",
+  "source_model_path": "/home/fall2021/amc9897/CSCI630-FinalProject/outputs/20260323_102518_train_minirocket/model.pkl",
+  "source_run_dir": "/home/fall2021/amc9897/CSCI630-FinalProject/outputs/20260323_102518_train_minirocket",
+  "stride": 50,
   "test_size": 0.2,
-  "weighted_f1": 0.9887489128847656
+  "weighted_f1": 0.9895592624963002
 }
