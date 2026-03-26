@@ -1,1 +1,0 @@
-This model does not expose a  loss history. learning curves were saved instead.
