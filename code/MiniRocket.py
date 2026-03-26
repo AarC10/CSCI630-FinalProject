@@ -18,6 +18,7 @@ class MiniRocket:
         self.C = C
         self.max_iter = max_iter
         self.class_weight = class_weight
+        self.solver = kwargs.pop("solver", "lbfgs")
         self.kwargs = kwargs
         self.model = self._build_model()
 
@@ -25,7 +26,7 @@ class MiniRocket:
         estimator = SklearnLR(
             C=self.C,
             max_iter=self.max_iter,
-            solver="lbfgs",
+            solver=self.solver,
             class_weight=self.class_weight,
             random_state=self.random_state,
         )
