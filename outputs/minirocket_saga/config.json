@@ -1,0 +1,24 @@
+{
+  "command": "train",
+  "curve_fractions": [
+    0.2,
+    0.4,
+    0.6,
+    0.8,
+    1.0
+  ],
+  "input_dir": "/home/fall2021/amc9897/dataset",
+  "max_files": null,
+  "model": "minirocket",
+  "model_kwargs": {
+    "max_iter": 3000,
+    "num_kernels": 1000,
+    "solver": "saga",
+    "tol": 0.0001
+  },
+  "random_state": 42,
+  "sequence_length": 100,
+  "stratify": true,
+  "stride": 50,
+  "test_size": 0.2
+}

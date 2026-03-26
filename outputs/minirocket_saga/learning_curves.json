@@ -1,0 +1,44 @@
+{
+  "fractions": [
+    {
+      "eval_accuracy": 0.987375203286258,
+      "eval_weighted_f1": 0.9857906433563836,
+      "fraction": 0.2,
+      "n_samples": 180533,
+      "train_accuracy": 0.9879191062021901,
+      "train_weighted_f1": 0.9863809476327178
+    },
+    {
+      "eval_accuracy": 0.9798774300185672,
+      "eval_weighted_f1": 0.9767797994170797,
+      "fraction": 0.4,
+      "n_samples": 361067,
+      "train_accuracy": 0.9799344719955022,
+      "train_weighted_f1": 0.976832226896572
+    },
+    {
+      "eval_accuracy": 0.9909601315212238,
+      "eval_weighted_f1": 0.9903743984721263,
+      "fraction": 0.6,
+      "n_samples": 541600,
+      "train_accuracy": 0.9911964549483013,
+      "train_weighted_f1": 0.9905980715390064
+    },
+    {
+      "eval_accuracy": 0.9872289701196897,
+      "eval_weighted_f1": 0.9858400982539594,
+      "fraction": 0.8,
+      "n_samples": 722134,
+      "train_accuracy": 0.9875729435257168,
+      "train_weighted_f1": 0.9861547118764955
+    },
+    {
+      "eval_accuracy": 0.9853722520350783,
+      "eval_weighted_f1": 0.9836805133008643,
+      "fraction": 1.0,
+      "n_samples": 902667,
+      "train_accuracy": 0.9856048797618613,
+      "train_weighted_f1": 0.9839230661265259
+    }
+  ]
+}
