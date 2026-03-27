@@ -8,12 +8,9 @@ import logging
 from sklearn.metrics import accuracy_score, f1_score
 
 from LogisticRegression import LogisticRegression
-
-from Knn import KNN
-
 from Catch22 import Catch22LogisticRegression
 from MiniRocket import MiniRocket
-
+from Knn import KNN
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +49,7 @@ class FlightPhaseClassifier:
             return Catch22LogisticRegression(random_state=self.random_state, **self.model_kwargs)
 
         if self.model_type == "knn":
-            raise KNN()
+            return KNN()
 
         if self.model_type == "tsf":
             raise NotImplementedError("TODO")

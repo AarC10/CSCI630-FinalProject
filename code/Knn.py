@@ -1,13 +1,4 @@
-
-"""
-Example script for training event classifiers on rocket flight data.
-This demonstrates how to use the generated datasets for event classification.
-"""
-from __future__ import annotations
-
-import pandas as pd
 import numpy as np
-
 
 from sklearn.neighbors import KNeighborsRegressor # Use KNeighborsRegressor for regression KNeighborsClassifier
 from sklearn.preprocessing import StandardScaler
@@ -58,8 +49,6 @@ class KNN:
     
     def _flatten(self, X: np.ndarray) -> np.ndarray:
         X = np.asarray(X)
-        #if X.ndim != 3:
-        #    raise ValueError(f"Expected X with shape (n_samples, n_channels, n_timesteps). Got {X.shape}.")
         return X.reshape(X.shape[0], -1)
 
     def fit(self, X: np.ndarray, y: np.ndarray):

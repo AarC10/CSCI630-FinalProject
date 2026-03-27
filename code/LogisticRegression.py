@@ -9,12 +9,14 @@ from sklearn.preprocessing import StandardScaler
 
 class LogisticRegression:
     def __init__(
-        self,
-        random_state: int | None = 42,
-        max_iter: int = 1000,
-        C: float = 1.0,
-        solver: str = "lfbgs",
-        **kwargs,
+            self,
+            random_state: int | None = 42,
+            max_iter: int = 1000,
+            C: float = 1.0,
+            solver: str = "lbfgs",
+            multi_class: str = "multinomial",
+            class_weight: str | None = "balanced",
+            **kwargs,
     ):
         self.random_state = random_state
         self.max_iter = max_iter
