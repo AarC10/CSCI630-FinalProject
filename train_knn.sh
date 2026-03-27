@@ -1,5 +1,5 @@
 python3 code/main.py train \
-  --input-dir dataset \
+  --input-dir ../dataset \
   --model knn \
   --model-kwargs metric=dtw_metric\
   --sequence-length 100 \
