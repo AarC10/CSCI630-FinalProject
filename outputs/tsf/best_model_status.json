@@ -1,0 +1,9 @@
+{
+  "active_source_run_dir": "/home/stu1/s10/cl8641/CSCI630-FinalProject/outputs/20260331_113305_train_tsf",
+  "best_model_metadata_path": "/home/stu1/s10/cl8641/CSCI630-FinalProject/outputs/best_model_metadata.json",
+  "best_model_path": "/home/stu1/s10/cl8641/CSCI630-FinalProject/outputs/best_model.pkl",
+  "candidate_weighted_f1": 0.9984110889135941,
+  "previous_best_weighted_f1": 0.9955629325716111,
+  "promoted": true,
+  "selection_metric": "test.weighted_f1"
+}
