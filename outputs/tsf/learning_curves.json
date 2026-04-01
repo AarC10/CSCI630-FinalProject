@@ -1,0 +1,20 @@
+{
+  "fractions": [
+    {
+      "eval_accuracy": 0.9973216847878072,
+      "eval_weighted_f1": 0.9973031358632249,
+      "fraction": 0.1,
+      "n_samples": 50181,
+      "train_accuracy": 1.0,
+      "train_weighted_f1": 1.0
+    },
+    {
+      "eval_accuracy": 0.9976564741893313,
+      "eval_weighted_f1": 0.9976391817071265,
+      "fraction": 0.2,
+      "n_samples": 100361,
+      "train_accuracy": 1.0,
+      "train_weighted_f1": 1.0
+    }
+  ]
+}
