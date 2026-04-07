@@ -106,6 +106,21 @@ class FlightPhaseClassifier:
         if not self.is_fitted or self.model is None:
             raise RuntimeError("Classifier has not been fitted yet. Call fit(X, y) first.")
 
+    def score_predictions(self, y: np.ndarray, predictions: np.ndarray) -> Dict[str, Any]:
+        y = self._validate_y(y, n_samples=len(predictions))
+        predictions = np.asarray(predictions, dtype=np.int64)
+        labels = list(self.PHASE_MAPPING.keys())
+        per_class_scores = f1_score(y, predictions, labels=labels, average=None, zero_division=0)
+
+        return {
+            "accuracy": float(accuracy_score(y, predictions)),
+            "weighted_f1": float(f1_score(y, predictions, average="weighted", zero_division=0)),
+            "macro_f1": float(f1_score(y, predictions, average="macro", zero_division=0)),
+            "per_class_f1": {label: float(score) for label, score in zip(labels, per_class_scores)},
+            "train_time": float(self.train_time),
+            "inference_time": float(self.last_inference_time),
+        }
+
     def fit(self, X: np.ndarray, y: np.ndarray) -> "PhaseClassifier":
         X = self._validate_X(X)
         y = self._validate_y(y, n_samples=X.shape[0])
@@ -134,16 +149,5 @@ class FlightPhaseClassifier:
     def evaluate(self, X: np.ndarray, y: np.ndarray) -> Dict[str, Any]:
         X = self._validate_X(X)
         y = self._validate_y(y, n_samples=X.shape[0])
-
         predictions = self.predict(X)
-        labels = list(self.PHASE_MAPPING.keys())
-        per_class_scores = f1_score(y, predictions, labels=labels, average=None, zero_division=0)
-
-        return {
-            "accuracy": float(accuracy_score(y, predictions)),
-            "weighted_f1": float(f1_score(y, predictions, average="weighted", zero_division=0)),
-            "macro_f1": float(f1_score(y, predictions, average="macro", zero_division=0)),
-            "per_class_f1": {label: float(score) for label, score in zip(labels, per_class_scores)},
-            "train_time": float(self.train_time),
-            "inference_time": float(self.last_inference_time),
-        }
+        return self.score_predictions(y, predictions)

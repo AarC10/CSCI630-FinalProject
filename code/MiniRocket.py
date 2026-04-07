@@ -10,7 +10,7 @@ class MiniRocket:
         num_kernels: int = 1000,
         C: float = 1.0,
         max_iter: int = 3000,
-        class_weight: str | None = None,
+        class_weight: str | None = "balanced",
         **kwargs,
     ):
         self.random_state = random_state
@@ -29,6 +29,7 @@ class MiniRocket:
             solver=self.solver,
             class_weight=self.class_weight,
             random_state=self.random_state,
+            **self.kwargs,
         )
         return MiniRocketClassifier(
             n_kernels=self.num_kernels,

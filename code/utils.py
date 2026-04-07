@@ -97,6 +97,44 @@ def build_predictions_dataframe(
     return dataframe
 
 
+def smooth_predictions_by_group(
+    predictions: np.ndarray,
+    metadata: list[dict[str, Any]] | None = None,
+    window_size: int = 1,
+) -> np.ndarray:
+    predictions = np.asarray(predictions, dtype=np.int64)
+    if window_size <= 1 or len(predictions) == 0:
+        return predictions.copy()
+
+    if window_size % 2 == 0:
+        raise ValueError("window_size must be an odd integer.")
+
+    smoothed = predictions.copy()
+    half_window = window_size // 2
+    if metadata:
+        groups = [str(item.get("source_file", "global")) for item in metadata]
+    else:
+        groups = ["global"] * len(predictions)
+
+    start = 0
+    while start < len(predictions):
+        end = start + 1
+        while end < len(predictions) and groups[end] == groups[start]:
+            end += 1
+
+        segment = predictions[start:end]
+        for offset in range(len(segment)):
+            left = max(0, offset - half_window)
+            right = min(len(segment), offset + half_window + 1)
+            window = segment[left:right]
+            labels, counts = np.unique(window, return_counts=True)
+            winning_label = labels[np.argmax(counts)]
+            smoothed[start + offset] = int(winning_label)
+        start = end
+
+    return smoothed
+
+
 def best_model_path(output_root: str | Path) -> Path:
     return Path(output_root).expanduser().resolve() / BEST_MODEL_FILENAME
 

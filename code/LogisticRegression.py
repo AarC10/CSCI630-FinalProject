@@ -20,6 +20,8 @@ class LogisticRegression:
         self.max_iter = max_iter
         self.C = C
         self.solver = solver
+        self.multi_class = multi_class
+        self.class_weight = class_weight
         self.kwargs = kwargs
         self.model = self._build_model()
 
@@ -31,6 +33,8 @@ class LogisticRegression:
                 max_iter=self.max_iter,
                 C=self.C,
                 solver=self.solver,
+                multi_class=self.multi_class,
+                class_weight=self.class_weight,
                 **self.kwargs,
             ),
         )

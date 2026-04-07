@@ -10,12 +10,14 @@ class Catch22LogisticRegression:
         max_iter: int = 1000,
         C: float = 1.0,
         solver: str = "saga",
+        class_weight: str | None = "balanced",
         **kwargs,
     ):
         self.random_state = random_state
         self.max_iter = max_iter
         self.C = C
         self.solver = solver
+        self.class_weight = class_weight
         self.kwargs = kwargs
         self.model = self._build_model()
 
@@ -26,6 +28,7 @@ class Catch22LogisticRegression:
                 max_iter=self.max_iter,
                 C=self.C,
                 solver=self.solver,
+                class_weight=self.class_weight,
                 **self.kwargs,
             ),
             n_jobs=-1,

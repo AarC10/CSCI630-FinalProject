@@ -4,7 +4,7 @@ import traceback
 
 from pathlib import Path
 from time import perf_counter
-from typing import Iterable
+from typing import Any, Iterable
 
 from sklearn.model_selection import train_test_split
 
@@ -24,17 +24,24 @@ def run_classify(args: argparse.Namespace) -> int:
     classifier, run_dir, saved_config = load_model(args.model_path)
     sequence_length, stride = resolve_window_params(args, saved_config)
     input_file = Path(args.input_file).expanduser().resolve()
+    smoothing_window = args.smoothing_window or saved_config.get("smoothing_window", 1)
+    label_strategy = saved_config.get("label_strategy", args.label_strategy or "center")
+    min_label_purity = saved_config.get("min_label_purity", args.min_label_purity)
 
     dataloader = Dataloader(
         data_path=str(input_file.parent),
         sequence_length=sequence_length,
         stride=stride,
         random_state=args.random_state,
+        label_strategy=label_strategy,
+        min_label_purity=min_label_purity,
+        split_strategy=saved_config.get("split_strategy", "group"),
     )
     X, y, metadata = dataloader.load_file(input_file, include_metadata=True)
 
     predictions = classifier.predict(X)
-    evaluation = classifier.evaluate(X, y)
+    smoothed_predictions = smooth_predictions_by_group(predictions, metadata, window_size=smoothing_window)
+    evaluation = classifier.score_predictions(y, smoothed_predictions)
 
     experiment = Experiment(args.output_dir, action="classify", model_name=classifier.model_type)
     experiment.save_json(
@@ -46,26 +53,31 @@ def run_classify(args: argparse.Namespace) -> int:
             "input_file": input_file,
             "sequence_length": sequence_length,
             "stride": stride,
+            "label_strategy": label_strategy,
+            "min_label_purity": min_label_purity,
+            "smoothing_window": smoothing_window,
             "random_state": args.random_state,
         },
     )
 
-    prediction_df = build_predictions_dataframe(metadata, predictions, y)
+    prediction_df = build_predictions_dataframe(metadata, smoothed_predictions, y)
+    prediction_df["raw_predicted_phase"] = predictions.astype(int)
+    prediction_df["raw_predicted_phase_name"] = [phase_name(label) for label in predictions]
     experiment.save_dataframe("predictions.csv", prediction_df)
     experiment.save_json("metrics.json", evaluation)
-    experiment.plot_confusion_matrix(y, predictions, PHASE_LABELS, PHASE_NAMES, "plots/confusion_matrix.png",
+    experiment.plot_confusion_matrix(y, smoothed_predictions, PHASE_LABELS, PHASE_NAMES, "plots/confusion_matrix.png",
                                      f"Confusion matrix: {input_file.name}")
     x_axis, xlabel = select_x_axis(metadata)
     experiment.plot_phase_timeline(
         x_axis,
-        predictions,
+        smoothed_predictions,
         PHASE_MAPPING,
         "plots/prediction_timeline.png",
         f"Prediction timeline: {input_file.name}",
         ground_truth=y,
         xlabel=xlabel,
     )
-    experiment.plot_label_distribution(predictions, PHASE_MAPPING, "plots/predicted_label_distribution.png",
+    experiment.plot_label_distribution(smoothed_predictions, PHASE_MAPPING, "plots/predicted_label_distribution.png",
                                        "Predicted label distribution")
     experiment.plot_label_distribution(y, PHASE_MAPPING, "plots/actual_label_distribution.png",
                                        "Actual label distribution")
@@ -133,6 +145,62 @@ def _sample_training_subset(
     return X_subset, y_subset
 
 
+def compute_cross_validation(
+    model_type: str,
+    model_kwargs: dict[str, Any],
+    random_state: int | None,
+    X: np.ndarray,
+    y: np.ndarray,
+    groups: np.ndarray,
+    dataloader: Dataloader,
+    n_splits: int,
+    smoothing_window: int = 1,
+) -> dict[str, Any]:
+    fold_rows: list[dict[str, Any]] = []
+    for fold_index, train_idx, test_idx in dataloader.iter_group_folds(X, y, groups, n_splits=n_splits):
+        LOGGER.info(
+            "Cross-validation fold %d/%d | train=%d | eval=%d | train_groups=%d | eval_groups=%d",
+            fold_index,
+            n_splits,
+            len(train_idx),
+            len(test_idx),
+            len(np.unique(groups[train_idx])),
+            len(np.unique(groups[test_idx])),
+        )
+        classifier = FlightPhaseClassifier(model_type=model_type, random_state=random_state, **model_kwargs)
+        classifier.fit(X[train_idx], y[train_idx])
+        predictions = classifier.predict(X[test_idx])
+        metadata = [{"source_file": str(group)} for group in groups[test_idx]]
+        predictions = smooth_predictions_by_group(predictions, metadata, window_size=smoothing_window)
+        metrics = classifier.score_predictions(y[test_idx], predictions)
+        fold_rows.append(
+            {
+                "fold": fold_index,
+                "n_train_samples": int(len(train_idx)),
+                "n_eval_samples": int(len(test_idx)),
+                "n_train_groups": int(len(np.unique(groups[train_idx]))),
+                "n_eval_groups": int(len(np.unique(groups[test_idx]))),
+                "accuracy": metrics["accuracy"],
+                "weighted_f1": metrics["weighted_f1"],
+                "macro_f1": metrics["macro_f1"],
+                "per_class_f1": metrics["per_class_f1"],
+                "train_time": metrics["train_time"],
+                "inference_time": metrics["inference_time"],
+            }
+        )
+
+    return {
+        "n_splits": int(n_splits),
+        "folds": fold_rows,
+        "mean_accuracy": float(np.mean([row["accuracy"] for row in fold_rows])),
+        "std_accuracy": float(np.std([row["accuracy"] for row in fold_rows])),
+        "mean_weighted_f1": float(np.mean([row["weighted_f1"] for row in fold_rows])),
+        "std_weighted_f1": float(np.std([row["weighted_f1"] for row in fold_rows])),
+        "mean_macro_f1": float(np.mean([row["macro_f1"] for row in fold_rows])),
+        "std_macro_f1": float(np.std([row["macro_f1"] for row in fold_rows])),
+    }
+
+
 def compute_learning_curves(
     model_type: str,
     model_kwargs: dict[str, Any],
@@ -168,8 +236,10 @@ def compute_learning_curves(
 
         classifier = FlightPhaseClassifier(model_type=model_type, random_state=random_state, **model_kwargs)
         classifier.fit(X_subset, y_subset)
-        subset_train_metrics = classifier.evaluate(X_subset, y_subset)
-        eval_metrics = classifier.evaluate(X_eval, y_eval)
+        train_predictions = classifier.predict(X_subset)
+        subset_train_metrics = classifier.score_predictions(y_subset, train_predictions)
+        eval_predictions = classifier.predict(X_eval)
+        eval_metrics = classifier.score_predictions(y_eval, eval_predictions)
         curve_rows.append(
             {
                 "fraction": fraction,
@@ -253,6 +323,9 @@ def run_train(args: argparse.Namespace) -> int:
         test_size=args.test_size,
         random_state=args.random_state,
         progress_every_files=args.progress_every_files,
+        label_strategy=args.label_strategy,
+        min_label_purity=args.min_label_purity,
+        split_strategy=args.split_strategy,
     )
 
     experiment = Experiment(args.output_dir, action="train", model_name=args.model)
@@ -267,6 +340,11 @@ def run_train(args: argparse.Namespace) -> int:
         "random_state": args.random_state,
         "max_files": args.max_files,
         "curve_fractions": args.curve_fractions,
+        "label_strategy": args.label_strategy,
+        "min_label_purity": args.min_label_purity,
+        "split_strategy": args.split_strategy,
+        "smoothing_window": args.smoothing_window,
+        "cv_folds": args.cv_folds,
         "stratify": not args.no_stratify,
     }
     experiment.save_json("config.json", config)
@@ -274,19 +352,42 @@ def run_train(args: argparse.Namespace) -> int:
 
     try:
         LOGGER.info("Starting data load and train/test split...")
-        X_train, X_test, y_train, y_test = dataloader.get_train_test_split(
+        X_train, X_test, y_train, y_test, train_groups, test_groups, train_metadata, test_metadata = dataloader.get_train_test_split(
             max_files=args.max_files,
             stratify=not args.no_stratify,
+            include_groups=True,
+            include_metadata=True,
         )
     except ValueError as exc:
         if not args.no_stratify:
             LOGGER.warning("Falling back to a non-stratified split because stratified splitting failed: %s", exc)
-            X_train, X_test, y_train, y_test = dataloader.get_train_test_split(
+            X_train, X_test, y_train, y_test, train_groups, test_groups, train_metadata, test_metadata = dataloader.get_train_test_split(
                 max_files=args.max_files,
                 stratify=False,
+                include_groups=True,
+                include_metadata=True,
             )
         else:
             raise
+
+    cv_results = None
+    if args.cv_folds and args.cv_folds > 1:
+        LOGGER.info("Starting grouped cross-validation with %d folds...", args.cv_folds)
+        X_all, y_all, groups_all = dataloader.load_data(
+            max_files=args.max_files,
+            include_groups=True,
+        )
+        cv_results = compute_cross_validation(
+            model_type=args.model,
+            model_kwargs=model_kwargs,
+            random_state=args.random_state,
+            X=X_all,
+            y=y_all,
+            groups=groups_all,
+            dataloader=dataloader,
+            n_splits=args.cv_folds,
+            smoothing_window=args.smoothing_window,
+        )
 
     classifier = FlightPhaseClassifier(model_type=args.model, random_state=args.random_state, **model_kwargs)
     try:
@@ -306,11 +407,24 @@ def run_train(args: argparse.Namespace) -> int:
 
     try:
         LOGGER.info("Running train/test evaluation...")
-        train_metrics = classifier.evaluate(X_train, y_train)
-        test_metrics = classifier.evaluate(X_test, y_test)
-        y_test_pred = classifier.predict(X_test)
+        y_train_pred_raw = classifier.predict(X_train)
+        y_train_pred = smooth_predictions_by_group(y_train_pred_raw, train_metadata, window_size=args.smoothing_window)
+        train_metrics = classifier.score_predictions(y_train, y_train_pred)
+
+        y_test_pred_raw = classifier.predict(X_test)
+        y_test_pred = smooth_predictions_by_group(y_test_pred_raw, test_metadata, window_size=args.smoothing_window)
+        test_metrics = classifier.score_predictions(y_test, y_test_pred)
 
         metrics_payload = {"train": train_metrics, "test": test_metrics}
+        if cv_results is not None:
+            metrics_payload["cross_validation"] = {
+                "mean_weighted_f1": cv_results["mean_weighted_f1"],
+                "std_weighted_f1": cv_results["std_weighted_f1"],
+                "mean_macro_f1": cv_results["mean_macro_f1"],
+                "std_macro_f1": cv_results["std_macro_f1"],
+                "mean_accuracy": cv_results["mean_accuracy"],
+                "std_accuracy": cv_results["std_accuracy"],
+            }
         metrics_path = experiment.save_json("metrics.json", metrics_payload)
         best_model_result = promote_best_model(
             output_root=args.output_dir,
@@ -338,15 +452,23 @@ def run_train(args: argparse.Namespace) -> int:
         prediction_df = pd.DataFrame(
             {
                 "sample_index": np.arange(len(y_test_pred), dtype=int),
+                "source_file": [item["source_file"] for item in test_metadata],
+                "start_idx": [item["start_idx"] for item in test_metadata],
+                "end_idx": [item["end_idx"] for item in test_metadata],
+                "label_purity": [item["label_purity"] for item in test_metadata],
                 "actual_phase": y_test.astype(int),
                 "actual_phase_name": [phase_name(label) for label in y_test],
                 "predicted_phase": y_test_pred.astype(int),
                 "predicted_phase_name": [phase_name(label) for label in y_test_pred],
+                "raw_predicted_phase": y_test_pred_raw.astype(int),
+                "raw_predicted_phase_name": [phase_name(label) for label in y_test_pred_raw],
                 "is_correct": y_test_pred.astype(int) == y_test.astype(int),
             }
         )
         experiment.save_dataframe("test_predictions.csv", prediction_df)
         experiment.save_json("learning_curves.json", curve_results)
+        if cv_results is not None:
+            experiment.save_json("cross_validation.json", cv_results)
         experiment.save_json(
             "dataset_summary.json",
             {
@@ -354,6 +476,8 @@ def run_train(args: argparse.Namespace) -> int:
                 "X_test_shape": X_test.shape,
                 "y_train_shape": y_train.shape,
                 "y_test_shape": y_test.shape,
+                "train_group_count": int(len(np.unique(train_groups))),
+                "test_group_count": int(len(np.unique(test_groups))),
             },
         )
         save_training_plots(experiment, classifier, y_train, y_test, y_test_pred, curve_results)
@@ -403,6 +527,16 @@ if __name__ == "__main__":
                               help="Print/load progress every N CSV files while creating windows.")
     train_parser.add_argument("--progress-every-fractions", type=int, default=1,
                               help="Print progress every N learning-curve fractions.")
+    train_parser.add_argument("--label-strategy", choices=sorted(Dataloader.SUPPORTED_LABEL_STRATEGIES), default="center",
+                              help="How each sliding window is labeled. 'center' usually works better for short transitions.")
+    train_parser.add_argument("--min-label-purity", type=float, default=0.0,
+                              help="Drop training windows whose selected label covers less than this fraction of the window.")
+    train_parser.add_argument("--split-strategy", choices=["group", "window"], default="group",
+                              help="How to split train/test data. 'group' keeps entire flights in one split.")
+    train_parser.add_argument("--smoothing-window", type=int, default=5,
+                              help="Odd-sized majority filter applied per flight to reduce flickering predictions.")
+    train_parser.add_argument("--cv-folds", type=int, default=0,
+                              help="Optional grouped cross-validation fold count. Disabled when set to 0 or 1.")
     train_parser.add_argument("--no-stratify", action="store_true", help="Disable stratified train/test splitting.")
     train_parser.set_defaults(func=run_train)
 
@@ -417,6 +551,12 @@ if __name__ == "__main__":
                                  help="Override the saved stride used for sliding windows.")
     classify_parser.add_argument("--random-state", type=int, default=42,
                                  help="Random seed used for loader construction.")
+    classify_parser.add_argument("--label-strategy", choices=sorted(Dataloader.SUPPORTED_LABEL_STRATEGIES), default=None,
+                                 help="Optional override for how windows are labeled before evaluation.")
+    classify_parser.add_argument("--min-label-purity", type=float, default=0.0,
+                                 help="Optional override for dropping ambiguous windows before evaluation.")
+    classify_parser.add_argument("--smoothing-window", type=int, default=None,
+                                 help="Optional override for per-flight prediction smoothing.")
     classify_parser.set_defaults(func=run_classify)
 
     compare_parser = subparsers.add_parser("compare", help="Compare two saved models on a labeled CSV file.")
