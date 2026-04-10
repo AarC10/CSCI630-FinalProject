@@ -267,6 +267,7 @@ def run_train(args: argparse.Namespace) -> int:
         "random_state": args.random_state,
         "max_files": args.max_files,
         "curve_fractions": args.curve_fractions,
+        "skip_learning_curves": args.skip_learning_curves,
         "stratify": not args.no_stratify,
     }
     experiment.save_json("config.json", config)
@@ -306,9 +307,10 @@ def run_train(args: argparse.Namespace) -> int:
 
     try:
         LOGGER.info("Running train/test evaluation...")
-        train_metrics = classifier.evaluate(X_train, y_train)
-        test_metrics = classifier.evaluate(X_test, y_test)
+        y_train_pred = classifier.predict(X_train)
+        train_metrics = classifier.score_predictions(y_train, y_train_pred)
         y_test_pred = classifier.predict(X_test)
+        test_metrics = classifier.score_predictions(y_test, y_test_pred)
 
         metrics_payload = {"train": train_metrics, "test": test_metrics}
         metrics_path = experiment.save_json("metrics.json", metrics_payload)
@@ -322,18 +324,22 @@ def run_train(args: argparse.Namespace) -> int:
         )
         experiment.save_json("best_model_status.json", best_model_result)
 
-        LOGGER.info("Computing learning curves for fractions: %s", args.curve_fractions)
-        curve_results = compute_learning_curves(
-            model_type=args.model,
-            model_kwargs=model_kwargs,
-            random_state=args.random_state,
-            X_train=X_train,
-            y_train=y_train,
-            X_eval=X_test,
-            y_eval=y_test,
-            fractions=args.curve_fractions,
-            progress_every=args.progress_every_fractions,
-        )
+        curve_results = {"fractions": []}
+        if args.skip_learning_curves:
+            LOGGER.info("Skipping learning-curve generation.")
+        else:
+            LOGGER.info("Computing learning curves for fractions: %s", args.curve_fractions)
+            curve_results = compute_learning_curves(
+                model_type=args.model,
+                model_kwargs=model_kwargs,
+                random_state=args.random_state,
+                X_train=X_train,
+                y_train=y_train,
+                X_eval=X_test,
+                y_eval=y_test,
+                fractions=args.curve_fractions,
+                progress_every=args.progress_every_fractions,
+            )
 
         prediction_df = pd.DataFrame(
             {
@@ -403,6 +409,8 @@ if __name__ == "__main__":
                               help="Print/load progress every N CSV files while creating windows.")
     train_parser.add_argument("--progress-every-fractions", type=int, default=1,
                               help="Print progress every N learning-curve fractions.")
+    train_parser.add_argument("--skip-learning-curves", action="store_true",
+                              help="Skip post-fit learning-curve generation to reduce total runtime.")
     train_parser.add_argument("--no-stratify", action="store_true", help="Disable stratified train/test splitting.")
     train_parser.set_defaults(func=run_train)
 

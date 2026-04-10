@@ -131,11 +131,12 @@ class FlightPhaseClassifier:
         logger.info(f"Finished predicting {len(X)} samples in {self.last_inference_time:.2f} seconds.")
         return np.asarray(predictions, dtype=np.int64)
 
-    def evaluate(self, X: np.ndarray, y: np.ndarray) -> Dict[str, Any]:
-        X = self._validate_X(X)
-        y = self._validate_y(y, n_samples=X.shape[0])
+    def score_predictions(self, y: np.ndarray, predictions: np.ndarray) -> Dict[str, Any]:
+        predictions = np.asarray(predictions, dtype=np.int64)
+        if predictions.ndim != 1:
+            raise ValueError(f"predictions must be a 1D array of labels. Got shape {predictions.shape}.")
+        y = self._validate_y(y, n_samples=len(predictions))
 
-        predictions = self.predict(X)
         labels = list(self.PHASE_MAPPING.keys())
         per_class_scores = f1_score(y, predictions, labels=labels, average=None, zero_division=0)
 
@@ -147,3 +148,8 @@ class FlightPhaseClassifier:
             "train_time": float(self.train_time),
             "inference_time": float(self.last_inference_time),
         }
+
+    def evaluate(self, X: np.ndarray, y: np.ndarray) -> Dict[str, Any]:
+        X = self._validate_X(X)
+        predictions = self.predict(X)
+        return self.score_predictions(y, predictions)
