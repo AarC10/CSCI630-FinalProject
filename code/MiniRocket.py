@@ -1,4 +1,10 @@
+import inspect
+
 from aeon.classification.convolution_based import RocketClassifier
+try:
+    from aeon.classification.convolution_based import MiniRocketClassifier
+except ImportError:
+    MiniRocketClassifier = None
 from sklearn.linear_model import LogisticRegression as SklearnLR
 from sklearn.linear_model import RidgeClassifierCV
 import numpy as np
@@ -61,15 +67,47 @@ class MiniRocket:
     def _build_model(self):
         estimator = self._build_estimator()
         wrapper_class_weight = self.class_weight if self.estimator_name == "ridge" and estimator is None else None
-        return RocketClassifier(
-            num_kernels=self.num_kernels,
-            rocket_transform="minirocket",
-            max_dilations_per_kernel=self.max_dilations_per_kernel,
-            estimator=estimator,
-            class_weight=wrapper_class_weight,
-            n_jobs=self.n_jobs,
-            random_state=self.random_state,
-        )
+        rocket_kwargs = {
+            "num_kernels": self.num_kernels,
+            "n_kernels": self.num_kernels,
+            "rocket_transform": "minirocket",
+            "transform": "minirocket",
+            "max_dilations_per_kernel": self.max_dilations_per_kernel,
+            "estimator": estimator,
+            "class_weight": wrapper_class_weight,
+            "n_jobs": self.n_jobs,
+            "random_state": self.random_state,
+        }
+
+        rocket_signature = inspect.signature(RocketClassifier.__init__)
+        filtered_rocket_kwargs = {
+            key: value for key, value in rocket_kwargs.items() if key in rocket_signature.parameters
+        }
+        if "num_kernels" in filtered_rocket_kwargs and "n_kernels" in filtered_rocket_kwargs:
+            filtered_rocket_kwargs.pop("num_kernels")
+
+        if "rocket_transform" in rocket_signature.parameters or "transform" in rocket_signature.parameters:
+            return RocketClassifier(**filtered_rocket_kwargs)
+
+        if MiniRocketClassifier is None:
+            return RocketClassifier(**filtered_rocket_kwargs)
+
+        minirocket_kwargs = {
+            "num_kernels": self.num_kernels,
+            "n_kernels": self.num_kernels,
+            "max_dilations_per_kernel": self.max_dilations_per_kernel,
+            "estimator": estimator,
+            "class_weight": wrapper_class_weight,
+            "n_jobs": self.n_jobs,
+            "random_state": self.random_state,
+        }
+        minirocket_signature = inspect.signature(MiniRocketClassifier.__init__)
+        filtered_minirocket_kwargs = {
+            key: value for key, value in minirocket_kwargs.items() if key in minirocket_signature.parameters
+        }
+        if "num_kernels" in filtered_minirocket_kwargs and "n_kernels" in filtered_minirocket_kwargs:
+            filtered_minirocket_kwargs.pop("num_kernels")
+        return MiniRocketClassifier(**filtered_minirocket_kwargs)
 
     def fit(self, X: np.ndarray, y: np.ndarray):
         self.model.fit(X, np.asarray(y))
