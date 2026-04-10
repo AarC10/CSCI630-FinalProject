@@ -1,0 +1,25 @@
+{
+  "command": "train",
+  "curve_fractions": [
+    0.2,
+    0.4,
+    0.6,
+    0.8,
+    1.0
+  ],
+  "input_dir": "/home/fall2021/amc9897/dataset",
+  "max_files": null,
+  "model": "minirocket",
+  "model_kwargs": {
+    "class_weight": "balanced",
+    "estimator_name": "ridge",
+    "max_dilations_per_kernel": 32,
+    "num_kernels": 2000
+  },
+  "random_state": 42,
+  "sequence_length": 100,
+  "skip_learning_curves": true,
+  "stratify": true,
+  "stride": 50,
+  "test_size": 0.2
+}
