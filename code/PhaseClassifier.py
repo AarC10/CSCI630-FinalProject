@@ -11,11 +11,21 @@ from LogisticRegression import LogisticRegression
 from Catch22 import Catch22LogisticRegression
 from MiniRocket import MiniRocket
 from Knn import KNN
+from RocketFamily import MultiRocket, Hydra, MultiRocketHydra
 
 logger = logging.getLogger(__name__)
 
 class FlightPhaseClassifier:
-    SUPPORTED_MODEL_TYPES = {"lr", "knn", "tsf", "minirocket", "catch22_lr"}
+    SUPPORTED_MODEL_TYPES = {
+        "lr",
+        "knn",
+        "tsf",
+        "minirocket",
+        "multirocket",
+        "hydra",
+        "multirocket_hydra",
+        "catch22_lr",
+    }
     PHASE_MAPPING = {
         0: "no_event",
         1: "liftoff",
@@ -56,6 +66,15 @@ class FlightPhaseClassifier:
 
         if self.model_type == "minirocket":
             return MiniRocket(random_state=self.random_state, **self.model_kwargs)
+
+        if self.model_type == "multirocket":
+            return MultiRocket(random_state=self.random_state, **self.model_kwargs)
+
+        if self.model_type == "hydra":
+            return Hydra(random_state=self.random_state, **self.model_kwargs)
+
+        if self.model_type == "multirocket_hydra":
+            return MultiRocketHydra(random_state=self.random_state, **self.model_kwargs)
 
         raise RuntimeError(f"Unhandled model_type: {self.model_type}")
 
